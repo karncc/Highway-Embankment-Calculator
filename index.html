@@ -3,19 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบคำนวณปริมาตรโครงสร้างชั้นทางและดินถมคันทาง (Multi-Layer Highway Pavement & Embankment Calculator)</title>
-  
+  <title>ระบบคำนวณปริมาตรงานดินตัด-ถมและโครงสร้างทางหลายชั้น (Highway Earthwork & Pavement Suite)</title>
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Three.js and OrbitControls CDN for 3D view -->
+  <!-- Three.js and OrbitControls -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  
-  <!-- Google Fonts: Prompt, Chakra Petch, JetBrains Mono -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;600&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -27,12 +26,19 @@
             mono: ['JetBrains Mono', 'monospace'],
           },
           colors: {
-            brand: {
+            cut: {
+              400: '#f87171',
+              500: '#ef4444',
+              600: '#dc2626',
+              900: '#7f1d1d',
+              950: '#450a0a',
+            },
+            fill: {
               400: '#38bdf8',
               500: '#0ea5e9',
               600: '#0284c7',
-              700: '#0369a1',
               900: '#0c4a6e',
+              950: '#082f49',
             }
           }
         }
@@ -41,63 +47,34 @@
   </script>
 
   <style>
-    body {
-      font-family: 'Prompt', sans-serif;
-    }
-    .heading-font {
-      font-family: 'Chakra Petch', sans-serif;
-    }
+    body { font-family: 'Prompt', sans-serif; }
+    .heading-font { font-family: 'Chakra Petch', sans-serif; }
     input[type=number]::-webkit-inner-spin-button, 
     input[type=number]::-webkit-outer-spin-button { 
       -webkit-appearance: none; 
       margin: 0; 
     }
-    input[type=number] {
-      -moz-appearance: textfield;
-    }
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: #0f172a;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 9999px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: #475569;
-    }
-    .svg-crosshair {
-      cursor: grab;
-    }
-    .svg-crosshair:active {
-      cursor: grabbing;
-    }
+    input[type=number] { -moz-appearance: textfield; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #090d16; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #334155; }
+    .svg-canvas { cursor: grab; }
+    .svg-canvas:active { cursor: grabbing; }
+
     @media print {
-      body {
-        background-color: white !important;
-        color: black !important;
-      }
-      .no-print {
-        display: none !important;
-      }
-      .print-card {
-        border: 1px solid #ccc !important;
-        box-shadow: none !important;
-        background: white !important;
-        color: black !important;
-      }
+      body { background-color: #ffffff !important; color: #000000 !important; }
+      .no-print { display: none !important; }
+      .print-border { border: 1px solid #cbd5e1 !important; }
     }
   </style>
 </head>
 <body class="min-h-full flex flex-col bg-slate-950 text-slate-100 antialiased selection:bg-sky-500 selection:text-white">
 
-  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 shadow-lg">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 shadow-xl">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-amber-500 p-0.5 shadow-md shadow-sky-500/20 flex items-center justify-center">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-rose-500 p-0.5 shadow-lg shadow-sky-500/20 flex items-center justify-center">
           <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
             <svg class="w-5 h-5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="3 20 8 4 16 4 21 20 3 20"></polygon>
@@ -108,230 +85,176 @@
         </div>
         <div>
           <h1 class="text-sm sm:text-base font-bold heading-font tracking-wide text-white flex items-center gap-2">
-            Highway Multi-Layer Pavement & Embankment
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-sky-950 text-sky-300 border border-sky-800 font-normal">DOH & DHR Standard</span>
+            Highway Earthwork &amp; Multi-Layer Pavement Suite
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-sky-950 text-sky-300 border border-sky-800 font-normal">DOH / DHR Standards</span>
           </h1>
-          <p class="text-[11px] text-slate-400 hidden sm:block">คำนวณปริมาตรแยกชั้นวัสดุ คสล./แอสฟัลต์, ทรายหยาบ, หินคลุก/ลูกรัง, และดินถมคันทาง</p>
+          <p class="text-[11px] text-slate-400 hidden sm:block">คำนวณดินตัด-ดินถม (Cut &amp; Fill) หลาย Station และโครงสร้างชั้นทางแยกรายชั้น พร้อมรูปตัด 2D, โปรไฟล์, และโมเดล 3D ต่อเนื่อง</p>
         </div>
       </div>
 
+      <!-- Action Buttons -->
       <div class="flex items-center space-x-2 no-print">
         <button onclick="window.print()" class="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-medium transition gap-1.5 shadow-sm">
           <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-          <span class="hidden sm:inline">พิมพ์รายงาน</span>
+          <span class="hidden md:inline">พิมพ์รายงาน</span>
         </button>
         <button id="exportCsvBtn" class="inline-flex items-center px-3 py-1.5 rounded-lg border border-sky-800 bg-sky-950 hover:bg-sky-900 text-xs text-sky-300 font-medium transition gap-1.5 shadow-sm">
           <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          <span class="hidden sm:inline">ส่งออก BOQ (CSV)</span>
+          <span class="hidden md:inline">ส่งออก BOQ ตาม Sta. (CSV)</span>
         </button>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-grow flex flex-col gap-6">
-
-    <!-- Presets Quick Bar -->
-    <div class="no-print bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 shadow-sm">
-      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <span class="p-1.5 rounded-lg bg-sky-950 text-sky-400 border border-sky-800/70">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-          </span>
-          <span class="text-xs font-semibold text-slate-200">รูปแบบโครงสร้างทางมาตรฐาน (Presets):</span>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button type="button" onclick="loadPreset('doh_rigid')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
-            1. ทล. คอนกรีต คสล. 20cm + ทราย + หินคลุก + ดินถม
-          </button>
-          <button type="button" onclick="loadPreset('doh_asphalt')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
-            2. ทล. แอสฟัลต์คอนกรีต 10cm + หินคลุก + ลูกรัง + ดินถม
-          </button>
-          <button type="button" onclick="loadPreset('rural_road')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
-            3. ถนน อปท./ชนบท คสล. 15cm + ทราย 5cm + ลูกรัง + ดินถม
-          </button>
-          <button type="button" onclick="loadPreset('canal_embankment')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
-            4. คันทางคันคลอง/คันดินถมล้วน (Homogeneous Fill)
-          </button>
-        </div>
+  <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full no-print">
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="p-1 rounded-lg bg-indigo-950 text-indigo-400 border border-indigo-800/60">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        </span>
+        <span class="text-xs font-semibold text-slate-200">โหลดชุดข้อมูลโครงการตัวอย่าง (Sample Project Presets):</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" onclick="loadSampleProject('cut_fill_mountain')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span> 1. แนวทางผ่านเนินเขา (มีทั้งดินตัดและดินถมผสมกัน)
+        </button>
+        <button type="button" onclick="loadSampleProject('high_embankment')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-sky-400"></span> 2. งานยกระดับคันทางสูง (High Fill Embankment)
+        </button>
+        <button type="button" onclick="loadSampleProject('deep_cut')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-rose-400"></span> 3. ทางตัดเปิดร่องเขา (Deep Cut Box)
+        </button>
       </div>
     </div>
+  </div>
 
-    <!-- Grid Container -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+  <main class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4 w-full flex-grow flex flex-col gap-5">
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
 
-      <!-- LEFT COLUMN: Parameter Inputs & Layers Manager (5 cols) -->
-      <div class="lg:col-span-5 flex flex-col gap-6">
+      <!-- LEFT COLUMN: Station Table & Layer Settings (5 cols on xl) -->
+      <div class="xl:col-span-5 flex flex-col gap-5">
 
-        <!-- Embankment Alignment Parameters Card -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
-          <div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-sky-500 to-indigo-600"></div>
-
-          <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-            <h2 class="text-sm font-bold text-white heading-font flex items-center gap-2">
-              <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-              1. พารามิเตอร์เรขาคณิตคันทาง (Roadway Geometry)
-            </h2>
-            <span class="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">STA. A &rarr; STA. B</span>
+        <!-- 1. Station Alignment Data Table -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl relative">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-sky-950 text-sky-400 border border-sky-800 flex items-center justify-center text-xs font-bold font-mono">1</span>
+              <div>
+                <h2 class="text-sm font-bold text-white heading-font">ข้อมูลแนวสถานี (Station &amp; Elevation Alignment)</h2>
+                <p class="text-[11px] text-slate-400">กรอก Sta, ค่าระดับดินเดิม (EGL), ค่าระดับออกแบบ (DFL)</p>
+              </div>
+            </div>
+            <button type="button" onclick="addNewStation()" class="text-xs px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition flex items-center gap-1 shadow">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              เพิ่ม Station
+            </button>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
-            <!-- Height A -->
-            <div class="col-span-1">
-              <label class="block text-xs font-medium text-slate-300 mb-1">
-                ความสูงคันทางจุด A ($h_A$)
-                <span class="text-sky-400 font-normal">(ม.)</span>
-              </label>
-              <div class="relative">
-                <input type="number" id="heightA" value="2.50" step="0.05" min="0.1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none">
-                <span class="absolute right-3 top-2.5 text-xs text-slate-500">m</span>
-              </div>
-              <p class="text-[10px] text-slate-500 mt-1">วัดจากดินเดิมถึงผิวบนสุด</p>
+          <!-- Global Geometry Controls for Slopes & Width -->
+          <div class="grid grid-cols-3 gap-2.5 bg-slate-950/70 p-3 rounded-xl border border-slate-800 mb-3 text-xs">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">ความกว้างทาง $W$ (ม.)</label>
+              <input type="number" id="globalWidth" value="9.00" step="0.5" min="2.0" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:ring-1 focus:ring-sky-500 outline-none">
             </div>
-
-            <!-- Height B -->
-            <div class="col-span-1">
-              <label class="block text-xs font-medium text-slate-300 mb-1">
-                ความสูงคันทางจุด B ($h_B$)
-                <span class="text-sky-400 font-normal">(ม.)</span>
-              </label>
+            <div>
+              <label class="block text-[11px] text-sky-400 mb-1">ลาดคันถม $1:s_{fill}$</label>
               <div class="relative">
-                <input type="number" id="heightB" value="1.50" step="0.05" min="0.1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none">
-                <span class="absolute right-3 top-2.5 text-xs text-slate-500">m</span>
-              </div>
-              <p class="text-[10px] text-slate-500 mt-1">วัดจากดินเดิมถึงผิวบนสุด</p>
-            </div>
-
-            <!-- Road Width -->
-            <div class="col-span-1">
-              <label class="block text-xs font-medium text-slate-300 mb-1">
-                ความกว้างคันทางรวม ($W$)
-                <span class="text-sky-400 font-normal">(ม.)</span>
-              </label>
-              <div class="relative">
-                <input type="number" id="roadWidth" value="8.00" step="0.5" min="2.0" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none">
-                <span class="absolute right-3 top-2.5 text-xs text-slate-500">m</span>
-              </div>
-              <p class="text-[10px] text-slate-500 mt-1">ผิวจราจรรวมไหล่ทาง</p>
-            </div>
-
-            <!-- Embankment Side Slope -->
-            <div class="col-span-1">
-              <label class="block text-xs font-medium text-slate-300 mb-1">
-                ลาดคันทาง ($1:s$)
-                <span class="text-sky-400 font-normal">(ราบ/ดิ่ง)</span>
-              </label>
-              <div class="relative">
-                <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">1 : </span>
-                <input type="number" id="sideSlope" value="1.50" step="0.25" min="0.5" max="5.0" class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-sm text-white font-mono focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none">
-              </div>
-              <p class="text-[10px] text-slate-500 mt-1">มาตรฐานทั่วไป 1:1.5 หรือ 1:2</p>
-            </div>
-
-            <!-- Station Distance L -->
-            <div class="col-span-1">
-              <label class="block text-xs font-medium text-slate-300 mb-1">
-                ระยะห่างช่วงทาง ($L$)
-                <span class="text-sky-400 font-normal">(ม.)</span>
-              </label>
-              <div class="relative">
-                <input type="number" id="stationLength" value="50.00" step="5" min="1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none">
-                <span class="absolute right-3 top-2.5 text-xs text-slate-500">m</span>
+                <span class="absolute left-2 top-1.5 text-slate-500 font-mono text-xs">1:</span>
+                <input type="number" id="globalFillSlope" value="1.50" step="0.25" min="0.5" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-6 pr-2 py-1.5 text-white font-mono text-xs focus:ring-1 focus:ring-sky-500 outline-none">
               </div>
             </div>
-
-            <!-- Cross Slope / Crown -->
-            <div class="col-span-1">
-              <label class="block text-xs font-medium text-slate-300 mb-1">
-                ความลาดขวางหลังเต่า ($S_c$)
-                <span class="text-sky-400 font-normal">(%)</span>
-              </label>
+            <div>
+              <label class="block text-[11px] text-rose-400 mb-1">ลาดคันตัด $1:s_{cut}$</label>
               <div class="relative">
-                <input type="number" id="crossSlope" value="2.5" step="0.5" min="0" max="6" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none">
-                <span class="absolute right-3 top-2.5 text-xs text-slate-500">%</span>
+                <span class="absolute left-2 top-1.5 text-slate-500 font-mono text-xs">1:</span>
+                <input type="number" id="globalCutSlope" value="1.00" step="0.25" min="0.25" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-6 pr-2 py-1.5 text-white font-mono text-xs focus:ring-1 focus:ring-rose-500 outline-none">
               </div>
             </div>
           </div>
+
+          <!-- Station Rows Table -->
+          <div class="overflow-x-auto custom-scrollbar max-h-[300px] border border-slate-800/80 rounded-xl bg-slate-950/40">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-950 text-[11px] text-slate-400 font-mono uppercase sticky top-0 border-b border-slate-800 z-10">
+                <tr>
+                  <th class="py-2 px-2.5">สถานี (Sta.)</th>
+                  <th class="py-2 px-2 text-right">ระยะ (ม.)</th>
+                  <th class="py-2 px-2 text-right">ดินเดิม EGL (ม.)</th>
+                  <th class="py-2 px-2 text-right">ระดับทาง DFL (ม.)</th>
+                  <th class="py-2 px-2 text-center">สภาวะ</th>
+                  <th class="py-2 px-2 text-center w-8">ลบ</th>
+                </tr>
+              </thead>
+              <tbody id="stationTableBody" class="divide-y divide-slate-800/60 font-mono">
+                <!-- Dynamically injected stations -->
+              </tbody>
+            </table>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-2">* คลิกที่แถว Station เพื่อสลับให้แสดงรูปตัด 2D Cross Section ของจุดนั้น</p>
         </div>
 
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
-          <div class="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-amber-500 to-emerald-600"></div>
-
+        <!-- 2. Multi-Layer Pavement Structure Manager -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
           <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-            <div>
-              <h2 class="text-sm font-bold text-white heading-font flex items-center gap-2">
-                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                2. การจัดการชั้นโครงสร้างทาง (Pavement Layers)
-              </h2>
-              <p class="text-[11px] text-slate-400 mt-0.5">เรียงจากชั้นบนสุดลงมายังชั้นดินถมคันทางฐานล่าง</p>
+            <div class="flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-amber-950 text-amber-400 border border-amber-800 flex items-center justify-center text-xs font-bold font-mono">2</span>
+              <div>
+                <h2 class="text-sm font-bold text-white heading-font">โครงสร้างชั้นทาง (Multi-Layer Pavement)</h2>
+                <p class="text-[11px] text-slate-400">ผิวทาง คสล., ทรายหยาบ, หินคลุก, ลูกรัง</p>
+              </div>
             </div>
-            <button type="button" onclick="addNewLayer()" class="text-xs px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition flex items-center gap-1">
+            <button type="button" onclick="addNewPavementLayer()" class="text-xs px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition flex items-center gap-1 shadow">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               เพิ่มชั้นวัสดุ
             </button>
           </div>
 
-          <!-- Dynamic Layer List Container -->
-          <div id="layersList" class="space-y-3 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar">
-            <!-- Rendered by JavaScript -->
+          <!-- Dynamic Layer List -->
+          <div id="layersContainer" class="space-y-2.5 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
+            <!-- Dynamically populated -->
           </div>
 
-          <!-- Base Subgrade Layer (Locked Bottom Layer) -->
-          <div class="mt-4 pt-3 border-t border-slate-800/80 bg-slate-950/60 rounded-xl p-3 border border-slate-800">
-            <div class="flex items-center justify-between text-xs">
-              <div class="flex items-center gap-2">
-                <span class="w-3.5 h-3.5 rounded bg-amber-900 border border-amber-700 flex items-center justify-center text-[9px] font-bold text-amber-200">B</span>
-                <div>
-                  <span class="font-bold text-amber-300">ชั้นล่างสุด: ดินถมคันทาง (Embankment Earth Fill)</span>
-                  <p class="text-[10px] text-slate-400">คำนวณจากระดับใต้ชั้นโครงสร้างทางลงไปถึงระดับดินเดิม ($h - \sum t_{layers}$)</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] text-slate-400">เผื่อยุบตัว:</span>
-                <input type="number" id="embankmentShrinkage" value="1.25" step="0.05" min="1.0" max="2.0" class="w-14 bg-slate-900 border border-slate-700 text-right px-1.5 py-1 text-xs rounded text-amber-300 font-mono">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Material Cost & Truck Estimation -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
-          <div class="flex items-center justify-between text-xs mb-3 font-semibold text-slate-300">
-            <span>ประเมินการขนส่งและราคาต่อหน่วย (BOQ Config)</span>
-            <span class="text-sky-400 text-[11px]">หน่วย: ลบ.ม. (หลวม)</span>
-          </div>
-          <div class="grid grid-cols-2 gap-3 text-xs">
+          <!-- Material Shrinkage and Truck Setup -->
+          <div class="mt-3 pt-3 border-t border-slate-800/80 grid grid-cols-3 gap-2.5 text-xs">
             <div>
-              <label class="text-[11px] text-slate-400">ความจุรถบรรทุก 10 ล้อ (ลบ.ม./เที่ยว)</label>
-              <input type="number" id="truckCapacity" value="10.0" step="0.5" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono">
+              <label class="block text-[10px] text-slate-400">ยุบตัวดินถม (Fill Factor)</label>
+              <input type="number" id="shrinkageFill" value="1.25" step="0.05" min="1.0" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-sky-400 font-mono text-xs">
             </div>
             <div>
-              <label class="text-[11px] text-slate-400">ราคาเฉลี่ยดินถมคันทาง (บาท/ลบ.ม.)</label>
-              <input type="number" id="soilUnitPrice" value="220" step="10" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono">
+              <label class="block text-[10px] text-slate-400">พองตัวดินขุด (Swell Cut)</label>
+              <input type="number" id="swellCut" value="1.20" step="0.05" min="1.0" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-rose-400 font-mono text-xs">
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-400">จุรถ 10 ล้อ (ลบ.ม./เที่ยว)</label>
+              <input type="number" id="truckCapacity" value="10.0" step="0.5" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-amber-300 font-mono text-xs">
             </div>
           </div>
         </div>
 
       </div>
 
-      <!-- RIGHT COLUMN: Visualizations & Engineering Results (7 cols) -->
-      <div class="lg:col-span-7 flex flex-col gap-6">
+      <div class="xl:col-span-7 flex flex-col gap-5">
 
-        <!-- Visual Display Card (2D Cross-Sections & 3D Interactive) -->
+        <!-- Visualizer Card: 2D Section / Longitudinal Profile / 3D Scene -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col">
-          <!-- Tabs Header -->
+          <!-- View Navigation Tabs -->
           <div class="bg-slate-950 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center space-x-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
-              <button id="tab2dBtn" onclick="switchVisualTab('2d')" class="px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium transition shadow flex items-center gap-1.5">
+              <button id="viewTab2dBtn" onclick="switchVisualTab('2d')" class="px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium transition shadow flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 12h16"/></svg>
-                รูปตัดขวาง 2D (Sta. A & B)
+                รูปตัดขวาง 2D (<span id="activeSectionBadge">Sta. 0+000</span>)
               </button>
-              <button id="tab3dBtn" onclick="switchVisualTab('3d')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white font-medium transition flex items-center gap-1.5">
+              <button id="viewTabProfileBtn" onclick="switchVisualTab('profile')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white font-medium transition flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                รูปแนวตั้ง Profile (EGL vs DFL)
+              </button>
+              <button id="viewTab3dBtn" onclick="switchVisualTab('3d')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white font-medium transition flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"/></svg>
-                โมเดลสามมิติ 3D (หมุนรอบทิศ)
+                แบบจำลอง 3D ตลอดสายทาง
               </button>
             </div>
 
-            <!-- View Controls -->
+            <!-- 2D Canvas Controls -->
             <div id="controls2d" class="flex items-center gap-1.5">
               <button onclick="zoom2D(1.2)" title="ซูมเข้า" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
@@ -346,167 +269,174 @@
 
             <!-- 3D Controls -->
             <div id="controls3d" class="hidden flex items-center gap-1.5">
-              <button id="explodeBtn" onclick="toggleExplode3D()" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition">
+              <button id="explode3dBtn" onclick="toggleExplode3D()" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition">
                 ระเบิดชั้น (Explode)
               </button>
-              <button id="wireframeBtn" onclick="toggleWireframe3D()" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+              <button id="wireframe3dBtn" onclick="toggleWireframe3D()" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
                 โครงลวด (Wireframe)
               </button>
               <button onclick="reset3DCamera()" class="px-2 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
-                รีเซ็ตกล้อง
+                Reset Cam
               </button>
             </div>
           </div>
 
-          <div id="viewContainer2D" class="relative w-full h-[400px] sm:h-[450px] bg-slate-950 overflow-hidden select-none">
-            <!-- Instruction overlay -->
+          <!-- 1. 2D Cross-Section SVG Viewport -->
+          <div id="viewport2D" class="relative w-full h-[420px] bg-slate-950 overflow-hidden select-none">
             <div class="absolute top-2 left-3 z-10 text-[10px] text-slate-400 bg-slate-900/80 backdrop-blur px-2.5 py-1 rounded-md border border-slate-800 pointer-events-none">
-              🔍 เลื่อนเมาส์/ทัชเพื่อ Zoom &amp; แดรกเมาส์เพื่อ Pan หน้าตัด
+              🔍 เลื่อนเมาส์เพื่อ Zoom / คลิกค้างลากเพื่อ Pan หน้าตัด
             </div>
 
-            <!-- SVG Render Target -->
-            <svg id="crossSectionSvg" class="w-full h-full svg-crosshair" preserveAspectRatio="xMidYMid meet">
+            <svg id="crossSectionSvg" class="w-full h-full svg-canvas" preserveAspectRatio="xMidYMid meet">
               <defs>
-                <!-- Hatching patterns for materials -->
-                <pattern id="hatchConcrete" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                  <line x1="0" y1="0" x2="0" y2="12" stroke="#94a3b8" stroke-width="1.2"/>
-                  <circle cx="6" cy="6" r="1" fill="#cbd5e1"/>
+                <!-- Material Hatches -->
+                <pattern id="patConcrete" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="0" y2="10" stroke="#94a3b8" stroke-width="1.5"/>
+                  <circle cx="5" cy="5" r="1.2" fill="#cbd5e1"/>
                 </pattern>
-                <pattern id="hatchSand" width="8" height="8" patternUnits="userSpaceOnUse">
-                  <circle cx="2" cy="2" r="0.8" fill="#fcd34d"/>
+                <pattern id="patSand" width="8" height="8" patternUnits="userSpaceOnUse">
+                  <circle cx="2" cy="2" r="0.8" fill="#fbbf24"/>
                   <circle cx="6" cy="6" r="0.8" fill="#f59e0b"/>
                 </pattern>
-                <pattern id="hatchCrushedRock" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
-                  <polygon points="3,3 7,1 5,7" fill="#64748b"/>
-                  <polygon points="9,9 13,11 11,13" fill="#94a3b8"/>
+                <pattern id="patCrushedRock" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+                  <polygon points="2,2 6,1 4,6" fill="#64748b"/>
+                  <polygon points="8,8 11,9 10,12" fill="#94a3b8"/>
                 </pattern>
-                <pattern id="hatchLaterite" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
-                  <line x1="0" y1="0" x2="10" y2="0" stroke="#f97316" stroke-width="1.5"/>
-                  <line x1="0" y1="5" x2="10" y2="5" stroke="#ea580c" stroke-width="0.7" stroke-dasharray="2 2"/>
+                <pattern id="patLaterite" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+                  <line x1="0" y1="0" x2="10" y2="0" stroke="#ea580c" stroke-width="1.8"/>
+                  <line x1="0" y1="5" x2="10" y2="5" stroke="#f97316" stroke-width="0.8" stroke-dasharray="2 2"/>
                 </pattern>
-                <pattern id="hatchEarth" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                  <line x1="0" y1="0" x2="16" y2="0" stroke="#854d0e" stroke-width="1.5"/>
-                  <line x1="0" y1="8" x2="16" y2="8" stroke="#a16207" stroke-width="0.8" stroke-dasharray="3 3"/>
+                <pattern id="patFill" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="14" y2="0" stroke="#0ea5e9" stroke-width="1.5"/>
+                  <line x1="0" y1="7" x2="14" y2="7" stroke="#38bdf8" stroke-width="0.8" stroke-dasharray="2 2"/>
                 </pattern>
-                <!-- Marker Arrow -->
+                <pattern id="patCut" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+                  <line x1="0" y1="0" x2="14" y2="0" stroke="#ef4444" stroke-width="1.5"/>
+                  <line x1="0" y1="7" x2="14" y2="7" stroke="#f87171" stroke-width="0.8" stroke-dasharray="2 2"/>
+                </pattern>
                 <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                   <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8"/>
                 </marker>
-                <marker id="arrowAmber" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#f59e0b"/>
+                <marker id="arrowRose" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#f87171"/>
                 </marker>
               </defs>
               <g id="svgViewport">
-                <!-- Dynamic cross sections will be drawn here -->
+                <!-- Injected via render2DCrossSection() -->
               </g>
             </svg>
 
-            <!-- Legend Badge Bar -->
-            <div id="materialLegend" class="absolute bottom-2 left-2 right-2 flex flex-wrap items-center justify-center gap-2 pointer-events-none text-[11px] bg-slate-900/90 py-1.5 px-3 rounded-xl border border-slate-800">
-              <!-- Dynamically filled -->
+            <!-- Legend Overlay -->
+            <div id="sectionLegend" class="absolute bottom-2 left-2 right-2 flex flex-wrap items-center justify-center gap-2 pointer-events-none text-[11px] bg-slate-900/90 py-1 px-3 rounded-xl border border-slate-800">
+              <!-- Dynamically populated -->
             </div>
           </div>
 
-          <div id="viewContainer3D" class="relative w-full h-[400px] sm:h-[450px] bg-slate-950 hidden overflow-hidden">
-            <div id="threeCanvasHolder" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
-            <!-- 3D Guidance Badge -->
+          <!-- 2. Longitudinal Profile Viewport -->
+          <div id="viewportProfile" class="relative w-full h-[420px] bg-slate-950 hidden overflow-hidden p-3">
+            <svg id="profileSvg" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
+              <g id="profileViewport">
+                <!-- Longitudinal profile chart -->
+              </g>
+            </svg>
+          </div>
+
+          <!-- 3. 3D WebGL Three.js Viewport -->
+          <div id="viewport3D" class="relative w-full h-[420px] bg-slate-950 hidden overflow-hidden">
+            <div id="webglContainer" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
             <div class="absolute top-2 left-3 text-[10px] text-slate-400 bg-slate-900/80 backdrop-blur px-2.5 py-1 rounded-md border border-slate-800 pointer-events-none">
-              🖱️ คลิกซ้ายค้างเพื่อหมุนมุมมอง | คลิกขวาค้างเพื่อเลื่อน (Pan) | สกอร์เมาส์เพื่อซูม
-            </div>
-            <!-- Station Markers Indicator -->
-            <div class="absolute bottom-3 left-4 flex gap-4 text-xs font-mono pointer-events-none">
-              <span class="px-2.5 py-1 rounded bg-sky-950/80 text-sky-300 border border-sky-800">Sta. A (Start)</span>
-              <span class="px-2.5 py-1 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800">&rarr; Length (L) &rarr;</span>
-              <span class="px-2.5 py-1 rounded bg-amber-950/80 text-amber-300 border border-amber-800">Sta. B (End)</span>
+              🖱️ คลิกซ้ายหมุนรอบทิศ 360° | คลิกขวาแพน | สกอร์เมาส์ซูม
             </div>
           </div>
 
         </div>
 
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
             <div>
-              <h3 class="text-base font-bold text-white heading-font flex items-center gap-2">
-                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                สรุปปริมาตรงานทางและคันทางแยกรายชั้นวัสดุ (Bill of Quantities)
+              <h3 class="text-sm sm:text-base font-bold text-white heading-font flex items-center gap-2">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                สรุปปริมาณงานดินตัด-ดินถม และชั้นทางรายช่วง (Earthwork &amp; Pavement BOQ)
               </h3>
-              <p class="text-xs text-slate-400 mt-0.5">คำนวณตามหลักวิศวกรรมทางหลวง (DOH Average End Area &amp; Prismoidal Method)</p>
+              <p class="text-[11px] text-slate-400">คำนวณตามวิธี Average End Area Method ($V = \frac{A_1 + A_2}{2} \times L$)</p>
             </div>
           </div>
 
-          <!-- Quick Metrics Bar -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
-              <span class="text-[10px] text-slate-400 uppercase tracking-wider block">พื้นที่หน้าตัด Sta. A รวม</span>
-              <div class="flex items-baseline gap-1 mt-1">
-                <span id="statAreaA" class="text-xl font-bold text-sky-400 font-mono">0.00</span>
-                <span class="text-xs text-slate-500">ตร.ม.</span>
+          <!-- Summary Metric Cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+            <div class="p-2.5 bg-rose-950/20 border border-rose-900/50 rounded-xl">
+              <span class="text-[10px] text-rose-400 block uppercase font-mono">ปริมาตรดินขุดแน่น (Total Cut)</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span id="metricTotalCutCompacted" class="text-lg font-bold text-rose-300 font-mono">0.00</span>
+                <span class="text-[10px] text-slate-400">ลบ.ม.</span>
               </div>
             </div>
 
-            <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
-              <span class="text-[10px] text-slate-400 uppercase tracking-wider block">พื้นที่หน้าตัด Sta. B รวม</span>
-              <div class="flex items-baseline gap-1 mt-1">
-                <span id="statAreaB" class="text-xl font-bold text-sky-400 font-mono">0.00</span>
-                <span class="text-xs text-slate-500">ตร.ม.</span>
+            <div class="p-2.5 bg-sky-950/20 border border-sky-900/50 rounded-xl">
+              <span class="text-[10px] text-sky-400 block uppercase font-mono">ปริมาตรดินถมแน่น (Total Fill)</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span id="metricTotalFillCompacted" class="text-lg font-bold text-sky-300 font-mono">0.00</span>
+                <span class="text-[10px] text-slate-400">ลบ.ม.</span>
               </div>
             </div>
 
-            <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
-              <span class="text-[10px] text-slate-400 uppercase tracking-wider block">ปริมาตรรวม (Prismoidal)</span>
-              <div class="flex items-baseline gap-1 mt-1">
-                <span id="statTotalPrism" class="text-xl font-bold text-emerald-400 font-mono">0.00</span>
-                <span class="text-xs text-slate-500">ลบ.ม.</span>
+            <div class="p-2.5 bg-amber-950/20 border border-amber-900/50 rounded-xl">
+              <span class="text-[10px] text-amber-400 block uppercase font-mono">ดินถมหลวมจัดซื้อ (Loose Fill)</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span id="metricTotalFillLoose" class="text-lg font-bold text-amber-300 font-mono">0.00</span>
+                <span class="text-[10px] text-slate-400">ลบ.ม.</span>
               </div>
             </div>
 
-            <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
-              <span class="text-[10px] text-slate-400 uppercase tracking-wider block">ประเมินเที่ยวรถบรรทุก (10 ล้อ)</span>
-              <div class="flex items-baseline gap-1 mt-1">
-                <span id="statTrucks" class="text-xl font-bold text-amber-400 font-mono">0</span>
-                <span class="text-xs text-slate-500">เที่ยว</span>
+            <div class="p-2.5 bg-slate-950/60 border border-slate-800 rounded-xl">
+              <span class="text-[10px] text-emerald-400 block uppercase font-mono">ประเมินเที่ยวรถ 10 ล้อ</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span id="metricTotalTrucks" class="text-lg font-bold text-emerald-300 font-mono">0</span>
+                <span class="text-[10px] text-slate-400">เที่ยว</span>
               </div>
             </div>
           </div>
 
-          <!-- Comprehensive Layer BOQ Breakdown Table -->
+          <!-- BOQ Station by Station Table -->
           <div class="overflow-x-auto custom-scrollbar border border-slate-800 rounded-xl">
             <table class="w-full text-left text-xs text-slate-300">
               <thead class="bg-slate-950 text-[11px] text-slate-400 border-b border-slate-800 uppercase font-mono">
                 <tr>
-                  <th class="py-2.5 px-3">ชั้นโครงสร้างทาง</th>
-                  <th class="py-2.5 px-2 text-right">หนา (ม.)</th>
-                  <th class="py-2.5 px-2 text-right">พื้นที่ A (ตร.ม.)</th>
-                  <th class="py-2.5 px-2 text-right">พื้นที่ B (ตร.ม.)</th>
-                  <th class="py-2.5 px-2 text-right">ปริมาตรแน่น (ลบ.ม.)</th>
-                  <th class="py-2.5 px-2 text-right">แฟกเตอร์ยุบตัว</th>
-                  <th class="py-2.5 px-2 text-right text-sky-400 font-bold">ปริมาตรหลวม (ลบ.ม.)</th>
-                  <th class="py-2.5 px-3 text-right">เที่ยวรถ (10ล้อ)</th>
+                  <th class="py-2.5 px-3">ช่วงสถานี (Station Interval)</th>
+                  <th class="py-2.5 px-2 text-right">ระยะ L (ม.)</th>
+                  <th class="py-2.5 px-2 text-right text-rose-400">พท.ตัดเฉลี่ย (ตร.ม.)</th>
+                  <th class="py-2.5 px-2 text-right text-rose-400">ดินตัดแน่น (ลบ.ม.)</th>
+                  <th class="py-2.5 px-2 text-right text-sky-400">พท.ถมเฉลี่ย (ตร.ม.)</th>
+                  <th class="py-2.5 px-2 text-right text-sky-400">ดินถมแน่น (ลบ.ม.)</th>
+                  <th class="py-2.5 px-2 text-right text-amber-300 font-bold">ดินถมหลวม (ลบ.ม.)</th>
+                  <th class="py-2.5 px-3 text-right">รถ 10 ล้อ (เที่ยว)</th>
                 </tr>
               </thead>
-              <tbody id="boqTableBody" class="divide-y divide-slate-800/60 bg-slate-900/50 font-mono">
-                <!-- Filled dynamically by JavaScript -->
+              <tbody id="earthworkTableBody" class="divide-y divide-slate-800/60 bg-slate-900/40 font-mono">
+                <!-- Injected via JavaScript -->
               </tbody>
               <tfoot class="bg-slate-950 font-semibold text-slate-200 border-t border-slate-700 text-xs">
                 <tr>
-                  <td class="py-2.5 px-3 font-bold" colspan="4">รวมปริมาตรทั้งหมด (Total Prismoidal Volume)</td>
-                  <td id="tfootTotalCompacted" class="py-2.5 px-2 text-right font-mono text-slate-300">-</td>
-                  <td class="py-2.5 px-2 text-center">-</td>
-                  <td id="tfootTotalLoose" class="py-2.5 px-2 text-right font-mono text-emerald-400 text-sm font-bold">-</td>
-                  <td id="tfootTotalTrucks" class="py-2.5 px-3 text-right font-mono text-amber-300 font-bold">-</td>
+                  <td class="py-2.5 px-3 font-bold" colspan="3">รวมทั้งสิ้น (Total Volumes)</td>
+                  <td id="tfootCutTotal" class="py-2.5 px-2 text-right font-mono text-rose-400 font-bold">-</td>
+                  <td class="py-2.5 px-2 text-right font-mono text-slate-400">-</td>
+                  <td id="tfootFillTotal" class="py-2.5 px-2 text-right font-mono text-sky-400 font-bold">-</td>
+                  <td id="tfootFillLooseTotal" class="py-2.5 px-2 text-right font-mono text-amber-300 font-bold">-</td>
+                  <td id="tfootTrucksTotal" class="py-2.5 px-3 text-right font-mono text-emerald-300 font-bold">-</td>
                 </tr>
               </tfoot>
             </table>
           </div>
 
-          <!-- Theoretical Formulas Accordion/Note -->
-          <div class="text-[11px] text-slate-400 bg-slate-950/40 rounded-xl p-3 border border-slate-800/80 space-y-1">
-            <span class="font-bold text-slate-300">สูตรการคำนวณมาตรฐานวิศวกรรมทางหลวง:</span>
-            <ul class="list-disc list-inside space-y-0.5 text-[10.5px]">
-              <li><strong class="text-slate-300">Average End Area:</strong> $V_{end} = \frac{A_1 + A_2}{2} \times L$</li>
-              <li><strong class="text-slate-300">Prismoidal Formula:</strong> $V_{prism} = \frac{L}{6} [ A_1 + 4A_m + A_2 ]$ โดยที่ $A_m$ คือพื้นที่หน้าตัดกึ่งกลางแท้จริง</li>
-              <li><strong class="text-slate-300">การหักลดความหนาชั้นทาง:</strong> พื้นที่ดินถมคันทางฐานล่างคำนวณจาก $A_{fill} = A_{total} - \sum A_{layers}$ ป้องกันการนับซ้ำซ้อน</li>
-            </ul>
+          <!-- Pavement Layers Volume Breakdown -->
+          <div class="mt-2">
+            <h4 class="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              ปริมาตรวัสดุโครงสร้างชั้นทางรวมตลอดสายทาง (Pavement Structure Quantities)
+            </h4>
+            <div id="pavementSummaryBadges" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <!-- Dynamically populated -->
+            </div>
           </div>
 
         </div>
@@ -514,83 +444,65 @@
       </div>
 
     </div>
-
   </main>
 
-  <!-- Footer -->
-  <footer class="border-t border-slate-800/80 bg-slate-950 py-4 text-center text-xs text-slate-500">
-    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-      <span>วิศวกรรมทางหลวงและการสำรวจปริมาณงานดินถม (Highway Earthwork &amp; Pavement Structure Engineering)</span>
-      <span>พัฒนาเพื่อมาตรฐานกรมทางหลวงและกรมทางหลวงชนบท</span>
-    </div>
-  </footer>
-
   <script>
-    /* =========================================================================
-       1. GLOBAL STATE & PRESETS
-       ========================================================================= */
+    // -------------------------------------------------------------------------
+    // DATA STRUCTURE & STATE
+    // -------------------------------------------------------------------------
     const MATERIAL_TYPES = {
       concrete: {
         name: 'ผิวทางคอนกรีต (คสล.)',
         color: '#94a3b8',
         threeColor: 0x94a3b8,
-        hatch: 'url(#hatchConcrete)',
-        defaultShrinkage: 1.05,
-        defaultUnitCost: 2800,
-        unit: 'ลบ.ม.'
-      },
-      asphalt: {
-        name: 'แอสฟัลต์คอนกรีต (AC)',
-        color: '#334155',
-        threeColor: 0x334155,
-        hatch: 'url(#hatchConcrete)',
-        defaultShrinkage: 1.10,
-        defaultUnitCost: 2900,
-        unit: 'ลบ.ม.'
+        hatch: 'url(#patConcrete)',
+        defaultShrinkage: 1.05
       },
       sand: {
         name: 'ทรายหยาบรองใต้แผ่น',
         color: '#f59e0b',
         threeColor: 0xd97706,
-        hatch: 'url(#hatchSand)',
-        defaultShrinkage: 1.20,
-        defaultUnitCost: 450,
-        unit: 'ลบ.ม.'
+        hatch: 'url(#patSand)',
+        defaultShrinkage: 1.20
       },
       crushedRock: {
-        name: 'หินคลุกพื้นทาง (Crushed Rock Base)',
+        name: 'หินคลุกพื้นทาง (Crushed Rock)',
         color: '#64748b',
         threeColor: 0x64748b,
-        hatch: 'url(#hatchCrushedRock)',
-        defaultShrinkage: 1.25,
-        defaultUnitCost: 550,
-        unit: 'ลบ.ม.'
+        hatch: 'url(#patCrushedRock)',
+        defaultShrinkage: 1.25
       },
       laterite: {
-        name: 'ลูกรังรองพื้นทาง (Subbase Laterite)',
+        name: 'ลูกรังรองพื้นทาง (Laterite Subbase)',
         color: '#ea580c',
         threeColor: 0xc2410c,
-        hatch: 'url(#hatchLaterite)',
-        defaultShrinkage: 1.30,
-        defaultUnitCost: 350,
-        unit: 'ลบ.ม.'
+        hatch: 'url(#patLaterite)',
+        defaultShrinkage: 1.30
       }
     };
 
-    // Current Pavement Structure Layers
-    let layersState = [
-      { id: 'layer_1', type: 'concrete', name: 'ผิวทางคอนกรีต คสล. 20 ซม.', thickness: 0.20, shrinkage: 1.05, unitCost: 2800, enabled: true },
-      { id: 'layer_2', type: 'sand', name: 'ทรายหยาบรองใต้แผ่น 5 ซม.', thickness: 0.05, shrinkage: 1.20, unitCost: 450, enabled: true },
-      { id: 'layer_3', type: 'crushedRock', name: 'หินคลุกพื้นทาง 15 ซม.', thickness: 0.15, shrinkage: 1.25, unitCost: 550, enabled: true },
-      { id: 'layer_4', type: 'laterite', name: 'ลูกรังรองพื้นทาง 20 ซม.', thickness: 0.20, shrinkage: 1.30, unitCost: 350, enabled: true }
+    // Stations Array
+    let stations = [
+      { id: 'st_0', name: '0+000', chainage: 0, egl: 100.00, dfl: 102.50 },
+      { id: 'st_1', name: '0+025', chainage: 25, egl: 101.20, dfl: 102.60 },
+      { id: 'st_2', name: '0+050', chainage: 50, egl: 103.80, dfl: 102.70 },
+      { id: 'st_3', name: '0+075', chainage: 75, egl: 104.50, dfl: 102.80 },
+      { id: 'st_4', name: '0+100', chainage: 100, egl: 101.50, dfl: 102.90 }
     ];
 
-    let currentTab = '2d';
-    let is3DExploded = false;
-    let is3DWireframe = false;
+    // Layers Array
+    let pavementLayers = [
+      { id: 'lay_1', type: 'concrete', name: 'ผิวทาง คสล. 20 ซม.', thickness: 0.20, shrinkage: 1.05, enabled: true },
+      { id: 'lay_2', type: 'sand', name: 'ทรายหยาบ 5 ซม.', thickness: 0.05, shrinkage: 1.20, enabled: true },
+      { id: 'lay_3', type: 'crushedRock', name: 'หินคลุกพื้นทาง 15 ซม.', thickness: 0.15, shrinkage: 1.25, enabled: true },
+      { id: 'lay_4', type: 'laterite', name: 'ลูกรังรองพื้นทาง 20 ซม.', thickness: 0.20, shrinkage: 1.30, enabled: true }
+    ];
 
-    // SVG Pan & Zoom State
-    let svgTransform = {
+    let selectedStationIndex = 0;
+    let activeVisualTab = '2d';
+
+    // 2D Canvas Transform
+    let svg2dState = {
       zoom: 1,
       panX: 0,
       panY: 0,
@@ -599,103 +511,179 @@
       startY: 0
     };
 
-    function loadPreset(presetKey) {
-      if (presetKey === 'doh_rigid') {
-        document.getElementById('roadWidth').value = '9.00';
-        document.getElementById('sideSlope').value = '1.50';
-        document.getElementById('crossSlope').value = '2.5';
-        layersState = [
-          { id: 'layer_1', type: 'concrete', name: 'ผิวจราจร คสล. 20 ซม.', thickness: 0.20, shrinkage: 1.05, unitCost: 2800, enabled: true },
-          { id: 'layer_2', type: 'sand', name: 'ทรายหยาบรองใต้แผ่น 5 ซม.', thickness: 0.05, shrinkage: 1.20, unitCost: 450, enabled: true },
-          { id: 'layer_3', type: 'crushedRock', name: 'หินคลุกพื้นทาง 15 ซม.', thickness: 0.15, shrinkage: 1.25, unitCost: 550, enabled: true },
-          { id: 'layer_4', type: 'laterite', name: 'ลูกรังรองพื้นทาง 20 ซม.', thickness: 0.20, shrinkage: 1.30, unitCost: 350, enabled: true }
+    // 3D Scene globals
+    let scene3D, camera3D, renderer3D, controls3D;
+    let corridor3DGroup;
+    let is3DExploded = false;
+    let is3DWireframe = false;
+
+    function loadSampleProject(key) {
+      if (key === 'cut_fill_mountain') {
+        document.getElementById('globalWidth').value = '9.00';
+        document.getElementById('globalFillSlope').value = '1.50';
+        document.getElementById('globalCutSlope').value = '1.00';
+        stations = [
+          { id: 'st_0', name: '0+000', chainage: 0, egl: 100.00, dfl: 102.50 },
+          { id: 'st_1', name: '0+025', chainage: 25, egl: 101.80, dfl: 102.65 },
+          { id: 'st_2', name: '0+050', chainage: 50, egl: 104.50, dfl: 102.80 },
+          { id: 'st_3', name: '0+075', chainage: 75, egl: 105.20, dfl: 102.95 },
+          { id: 'st_4', name: '0+100', chainage: 100, egl: 101.20, dfl: 103.10 }
         ];
-      } else if (presetKey === 'doh_asphalt') {
-        document.getElementById('roadWidth').value = '8.00';
-        document.getElementById('sideSlope').value = '1.50';
-        document.getElementById('crossSlope').value = '2.5';
-        layersState = [
-          { id: 'layer_1', type: 'asphalt', name: 'แอสฟัลต์คอนกรีต หนา 10 ซม.', thickness: 0.10, shrinkage: 1.10, unitCost: 2900, enabled: true },
-          { id: 'layer_2', type: 'crushedRock', name: 'หินคลุกพื้นทาง 20 ซม.', thickness: 0.20, shrinkage: 1.25, unitCost: 550, enabled: true },
-          { id: 'layer_3', type: 'laterite', name: 'ลูกรังรองพื้นทาง 20 ซม.', thickness: 0.20, shrinkage: 1.30, unitCost: 350, enabled: true }
+      } else if (key === 'high_embankment') {
+        document.getElementById('globalWidth').value = '10.00';
+        document.getElementById('globalFillSlope').value = '1.75';
+        document.getElementById('globalCutSlope').value = '1.00';
+        stations = [
+          { id: 'st_0', name: '0+000', chainage: 0, egl: 50.00, dfl: 53.00 },
+          { id: 'st_1', name: '0+030', chainage: 30, egl: 50.20, dfl: 53.50 },
+          { id: 'st_2', name: '0+060', chainage: 60, egl: 50.50, dfl: 54.00 },
+          { id: 'st_3', name: '0+090', chainage: 90, egl: 50.80, dfl: 53.50 },
+          { id: 'st_4', name: '0+120', chainage: 120, egl: 51.00, dfl: 53.00 }
         ];
-      } else if (presetKey === 'rural_road') {
-        document.getElementById('roadWidth').value = '6.00';
-        document.getElementById('sideSlope').value = '1.50';
-        document.getElementById('crossSlope').value = '3.0';
-        layersState = [
-          { id: 'layer_1', type: 'concrete', name: 'ผิวทาง คสล. 15 ซม.', thickness: 0.15, shrinkage: 1.05, unitCost: 2800, enabled: true },
-          { id: 'layer_2', type: 'sand', name: 'ทรายหยาบ 5 ซม.', thickness: 0.05, shrinkage: 1.20, unitCost: 450, enabled: true },
-          { id: 'layer_3', type: 'laterite', name: 'ลูกรังรองพื้นทาง 15 ซม.', thickness: 0.15, shrinkage: 1.30, unitCost: 350, enabled: true }
+      } else if (key === 'deep_cut') {
+        document.getElementById('globalWidth').value = '8.00';
+        document.getElementById('globalFillSlope').value = '1.50';
+        document.getElementById('globalCutSlope').value = '0.75';
+        stations = [
+          { id: 'st_0', name: '0+000', chainage: 0, egl: 120.00, dfl: 118.00 },
+          { id: 'st_1', name: '0+025', chainage: 25, egl: 122.50, dfl: 118.20 },
+          { id: 'st_2', name: '0+050', chainage: 50, egl: 124.00, dfl: 118.40 },
+          { id: 'st_3', name: '0+075', chainage: 75, egl: 121.80, dfl: 118.60 }
         ];
-      } else if (presetKey === 'canal_embankment') {
-        document.getElementById('roadWidth').value = '5.00';
-        document.getElementById('sideSlope').value = '2.00';
-        document.getElementById('crossSlope').value = '2.0';
-        layersState = []; // คันดินถมล้วน
       }
-      renderLayersListUI();
+      selectedStationIndex = 0;
+      renderStationTable();
       recalculateAll();
     }
 
-    function renderLayersListUI() {
-      const container = document.getElementById('layersList');
-      if (layersState.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-6 border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
-            ไม่มีชั้นผิวทางเสริม (คันทางเป็นดินถมคันทางทั้งหมด)
-          </div>
-        `;
+    function addNewStation() {
+      const count = stations.length;
+      const last = stations[count - 1] || { chainage: 0, egl: 100, dfl: 102 };
+      const nextChainage = last.chainage + 25;
+      const km = Math.floor(nextChainage / 1000);
+      const m = nextChainage % 1000;
+      const name = `${km}+${m.toString().padStart(3, '0')}`;
+
+      stations.push({
+        id: 'st_' + Date.now(),
+        name: name,
+        chainage: nextChainage,
+        egl: last.egl,
+        dfl: last.dfl
+      });
+      renderStationTable();
+      recalculateAll();
+    }
+
+    function removeStation(index, event) {
+      if (event) event.stopPropagation();
+      if (stations.length <= 2) {
+        alert('จำเป็นต้องมีสถานีอย่างน้อย 2 สถานีเพื่อคำนวณช่วงทาง');
         return;
       }
+      stations.splice(index, 1);
+      if (selectedStationIndex >= stations.length) {
+        selectedStationIndex = stations.length - 1;
+      }
+      renderStationTable();
+      recalculateAll();
+    }
 
-      container.innerHTML = layersState.map((layer, index) => {
+    function updateStationField(index, field, value) {
+      stations[index][field] = value;
+      if (field === 'chainage') {
+        stations.sort((a, b) => a.chainage - b.chainage);
+      }
+      recalculateAll();
+    }
+
+    function selectStation(index) {
+      selectedStationIndex = index;
+      renderStationTable();
+      render2DCrossSection();
+    }
+
+    function renderStationTable() {
+      const tbody = document.getElementById('stationTableBody');
+      tbody.innerHTML = stations.map((st, i) => {
+        const isSelected = i === selectedStationIndex;
+        const diff = st.dfl - st.egl;
+        const isCut = diff < -0.01;
+        const isFill = diff > 0.01;
+        const statusBadge = isCut 
+          ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-rose-950 text-rose-300 border border-rose-800">Cut (${Math.abs(diff).toFixed(2)}m)</span>`
+          : isFill
+          ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-sky-950 text-sky-300 border border-sky-800">Fill (${diff.toFixed(2)}m)</span>`
+          : `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300">Grade</span>`;
+
+        return `
+          <tr class="cursor-pointer transition ${isSelected ? 'bg-sky-950/40 border-l-4 border-sky-500 text-white font-semibold' : 'hover:bg-slate-800/40'}" onclick="selectStation(${i})">
+            <td class="py-2 px-2.5">
+              <input type="text" value="${st.name}" onclick="event.stopPropagation()" onchange="updateStationField(${i}, 'name', this.value)" class="bg-transparent text-xs w-16 border-b border-transparent hover:border-slate-600 focus:border-sky-500 outline-none">
+            </td>
+            <td class="py-2 px-2 text-right">
+              <input type="number" value="${st.chainage}" onclick="event.stopPropagation()" onchange="updateStationField(${i}, 'chainage', parseFloat(this.value)||0)" class="bg-transparent text-xs w-14 text-right border-b border-transparent hover:border-slate-600 focus:border-sky-500 outline-none">
+            </td>
+            <td class="py-2 px-2 text-right">
+              <input type="number" value="${st.egl.toFixed(2)}" step="0.1" onclick="event.stopPropagation()" onchange="updateStationField(${i}, 'egl', parseFloat(this.value)||0)" class="bg-transparent text-xs w-14 text-right border-b border-transparent hover:border-slate-600 focus:border-sky-500 outline-none text-amber-300">
+            </td>
+            <td class="py-2 px-2 text-right">
+              <input type="number" value="${st.dfl.toFixed(2)}" step="0.1" onclick="event.stopPropagation()" onchange="updateStationField(${i}, 'dfl', parseFloat(this.value)||0)" class="bg-transparent text-xs w-14 text-right border-b border-transparent hover:border-slate-600 focus:border-sky-500 outline-none text-sky-300">
+            </td>
+            <td class="py-2 px-2 text-center">${statusBadge}</td>
+            <td class="py-2 px-2 text-center">
+              <button type="button" onclick="removeStation(${i}, event)" class="text-slate-500 hover:text-rose-400 p-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      const activeSt = stations[selectedStationIndex] || stations[0];
+      if (activeSt) {
+        document.getElementById('activeSectionBadge').textContent = `Sta. ${activeSt.name}`;
+      }
+    }
+
+    function renderLayersListUI() {
+      const container = document.getElementById('layersContainer');
+      container.innerHTML = pavementLayers.map((layer, index) => {
         const mat = MATERIAL_TYPES[layer.type] || MATERIAL_TYPES.concrete;
         return `
-          <div class="bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-xl p-3 transition shadow-sm" id="layerRow_${layer.id}">
-            <div class="flex items-center justify-between gap-2 mb-2">
-              <div class="flex items-center gap-2 flex-grow">
-                <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold font-mono bg-slate-800 text-slate-300 border border-slate-700">
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 transition">
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <div class="flex items-center gap-1.5">
+                <span class="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold font-mono bg-slate-800 text-slate-300">
                   ${index + 1}
                 </span>
-                <input type="text" value="${escapeHtml(layer.name)}" 
-                  onchange="updateLayerField('${layer.id}', 'name', this.value)"
-                  class="bg-transparent text-xs font-semibold text-white border-b border-transparent hover:border-slate-700 focus:border-sky-500 outline-none w-full max-w-[200px] truncate">
+                <input type="text" value="${layer.name}" onchange="updatePavementField('${layer.id}', 'name', this.value)" class="bg-transparent text-xs font-semibold text-white outline-none w-44">
               </div>
-              
-              <div class="flex items-center gap-1.5">
-                <button type="button" onclick="toggleLayerEnable('${layer.id}')" title="${layer.enabled ? 'ปิดการคำนวณชั้นนี้' : 'เปิดการคำนวณชั้นนี้'}" class="p-1 rounded text-xs ${layer.enabled ? 'text-emerald-400 bg-emerald-950/50 border border-emerald-800' : 'text-slate-500 bg-slate-900 border border-slate-800'}">
+              <div class="flex items-center gap-1">
+                <button type="button" onclick="togglePavementLayer('${layer.id}')" class="text-[10px] px-1.5 py-0.5 rounded ${layer.enabled ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-900 text-slate-500 border border-slate-800'}">
                   ${layer.enabled ? 'เปิด' : 'ปิด'}
                 </button>
-                <button type="button" onclick="removeLayer('${layer.id}')" title="ลบชั้นวัสดุนี้" class="p-1 rounded text-rose-400 hover:bg-rose-950/50 transition">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                <button type="button" onclick="removePavementLayer('${layer.id}')" class="p-1 text-slate-500 hover:text-rose-400">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
               </div>
             </div>
-
-            <!-- Parameters inside layer -->
             <div class="grid grid-cols-3 gap-2 text-xs">
               <div>
-                <label class="block text-[10px] text-slate-400">ประเภทวัสดุ</label>
-                <select onchange="updateLayerType('${layer.id}', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-white outline-none">
+                <span class="text-[9px] text-slate-400 block">วัสดุ</span>
+                <select onchange="updatePavementType('${layer.id}', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-[11px] text-white outline-none">
                   ${Object.keys(MATERIAL_TYPES).map(k => `
                     <option value="${k}" ${layer.type === k ? 'selected' : ''}>${MATERIAL_TYPES[k].name}</option>
                   `).join('')}
                 </select>
               </div>
-
               <div>
-                <label class="block text-[10px] text-slate-400">ความหนา (ม.)</label>
-                <input type="number" value="${layer.thickness}" step="0.01" min="0.01" max="2.0"
-                  onchange="updateLayerField('${layer.id}', 'thickness', parseFloat(this.value) || 0.05)"
-                  class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-white font-mono outline-none">
+                <span class="text-[9px] text-slate-400 block">หนา (ม.)</span>
+                <input type="number" value="${layer.thickness}" step="0.01" min="0.01" onchange="updatePavementField('${layer.id}', 'thickness', parseFloat(this.value)||0.05)" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-[11px] text-white font-mono outline-none">
               </div>
-
               <div>
-                <label class="block text-[10px] text-slate-400">แฟกเตอร์ยุบตัว</label>
-                <input type="number" value="${layer.shrinkage}" step="0.05" min="1.0" max="2.5"
-                  onchange="updateLayerField('${layer.id}', 'shrinkage', parseFloat(this.value) || 1.0)"
-                  class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-mono outline-none">
+                <span class="text-[9px] text-slate-400 block">ยุบตัว</span>
+                <input type="number" value="${layer.shrinkage}" step="0.05" min="1.0" onchange="updatePavementField('${layer.id}', 'shrinkage', parseFloat(this.value)||1.0)" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-[11px] text-amber-300 font-mono outline-none">
               </div>
             </div>
           </div>
@@ -703,33 +691,28 @@
       }).join('');
     }
 
-    function escapeHtml(str) {
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    }
-
-    function addNewLayer() {
-      const newId = 'layer_' + Date.now();
-      layersState.push({
-        id: newId,
+    function addNewPavementLayer() {
+      const id = 'lay_' + Date.now();
+      pavementLayers.push({
+        id: id,
         type: 'crushedRock',
-        name: 'ชั้นเสริมหินคลุก/ลูกรัง ' + (layersState.length + 1),
+        name: 'ชั้นเสริมหินคลุก/ลูกรัง ' + (pavementLayers.length + 1),
         thickness: 0.15,
         shrinkage: 1.25,
-        unitCost: 500,
         enabled: true
       });
       renderLayersListUI();
       recalculateAll();
     }
 
-    function removeLayer(id) {
-      layersState = layersState.filter(l => l.id !== id);
+    function removePavementLayer(id) {
+      pavementLayers = pavementLayers.filter(l => l.id !== id);
       renderLayersListUI();
       recalculateAll();
     }
 
-    function toggleLayerEnable(id) {
-      const l = layersState.find(item => item.id === id);
+    function togglePavementLayer(id) {
+      const l = pavementLayers.find(x => x.id === id);
       if (l) {
         l.enabled = !l.enabled;
         renderLayersListUI();
@@ -737,211 +720,214 @@
       }
     }
 
-    function updateLayerType(id, newType) {
-      const l = layersState.find(item => item.id === id);
-      if (l && MATERIAL_TYPES[newType]) {
-        l.type = newType;
-        l.shrinkage = MATERIAL_TYPES[newType].defaultShrinkage;
-        l.unitCost = MATERIAL_TYPES[newType].defaultUnitCost;
-        renderLayersListUI();
-        recalculateAll();
-      }
-    }
-
-    function updateLayerField(id, field, value) {
-      const l = layersState.find(item => item.id === id);
+    function updatePavementField(id, field, value) {
+      const l = pavementLayers.find(x => x.id === id);
       if (l) {
         l[field] = value;
         recalculateAll();
       }
     }
 
-    function getFormValues() {
-      return {
-        hA: Math.max(0.1, parseFloat(document.getElementById('heightA').value) || 2.5),
-        hB: Math.max(0.1, parseFloat(document.getElementById('heightB').value) || 1.5),
-        width: Math.max(1.0, parseFloat(document.getElementById('roadWidth').value) || 8.0),
-        s: Math.max(0.2, parseFloat(document.getElementById('sideSlope').value) || 1.5),
-        L: Math.max(0.1, parseFloat(document.getElementById('stationLength').value) || 50.0),
-        crossSlope: (parseFloat(document.getElementById('crossSlope').value) || 2.5) / 100.0,
-        embankmentShrinkage: Math.max(1.0, parseFloat(document.getElementById('embankmentShrinkage').value) || 1.25),
-        truckCap: Math.max(1.0, parseFloat(document.getElementById('truckCapacity').value) || 10.0),
-        soilPrice: Math.max(0, parseFloat(document.getElementById('soilUnitPrice').value) || 220)
-      };
+    function updatePavementType(id, type) {
+      const l = pavementLayers.find(x => x.id === id);
+      if (l && MATERIAL_TYPES[type]) {
+        l.type = type;
+        l.shrinkage = MATERIAL_TYPES[type].defaultShrinkage;
+        renderLayersListUI();
+        recalculateAll();
+      }
     }
 
     /**
-     * Accurate Trapeze calculation for a roadway section:
-     * Total embankment cross-section: A = (W + s * h) * h
-     * For pavement layers:
-     * Top layer has width W. Each layer of thickness t extends downward.
-     * In standard highway geometry, pavement layers occupy the top crown width W.
-     * Layer Area = W * thickness (or with layer-edge shoulder stepped trapezoid).
+     * Calculates single cross section geometric properties:
+     * - In Fill condition (DFL >= EGL):
+     *     Height h = DFL - EGL
+     *     Total trapezoid area = (W + s_fill * h) * h
+     *     Pavement layers occupy top width W
+     *     Base earth fill area = Total - Sum(pavement layers)
+     * - In Cut condition (DFL < EGL):
+     *     Depth d = EGL - DFL
+     *     Road formation is excavated below EGL by (d + totalPavementThickness)
+     *     Side cut slopes rise at 1:s_cut from bottom of road formation up to EGL
+     *     Box Cut area = (W + s_cut * (d + t_pave)) * (d + t_pave)
      */
-    function computeCalculations() {
-      const p = getFormValues();
+    function computeStationGeometry(st, W, sFill, sCut, activeLayers, totalPaveThick) {
+      const diff = st.dfl - st.egl;
+      const isFill = diff >= 0;
+      const absDiff = Math.abs(diff);
 
-      // Total cross section area at STA. A & STA. B
-      const totalAreaA = (p.width + (p.s * p.hA)) * p.hA;
-      const totalAreaB = (p.width + (p.s * p.hB)) * p.hB;
+      let fillArea = 0;
+      let cutArea = 0;
+      let baseWidth = W;
 
-      // Mid station geometry for prismoidal calculation
-      const hM = (p.hA + p.hB) / 2.0;
-      const totalAreaM = (p.width + (p.s * hM)) * hM;
+      if (isFill) {
+        const h = absDiff;
+        const totalTrapezoid = (W + (sFill * h)) * h;
+        // Pavement layer deduction from embankment fill
+        const paveAreaSum = activeLayers.reduce((sum, l) => sum + (W * l.thickness), 0);
+        fillArea = Math.max(0, totalTrapezoid - paveAreaSum);
+        cutArea = 0;
+        baseWidth = W + 2 * sFill * h;
+      } else {
+        // Cut condition: The roadbed must be cut below ground to accommodate pavement
+        const totalCutDepth = absDiff + totalPaveThick;
+        cutArea = (W + (sCut * totalCutDepth)) * totalCutDepth;
+        fillArea = 0;
+        baseWidth = W + 2 * sCut * totalCutDepth;
+      }
 
-      // Calculate each individual layer
-      let cumThickness = 0;
-      let activeLayers = layersState.filter(l => l.enabled);
-      
-      const layerCalcs = activeLayers.map((l, index) => {
-        const t = l.thickness;
-        // Upper road width for layer
-        const layerAreaA = p.width * t;
-        const layerAreaB = p.width * t;
-        const layerAreaM = p.width * t;
+      return {
+        ...st,
+        diff,
+        isFill,
+        fillArea,
+        cutArea,
+        baseWidth,
+        totalPaveThick
+      };
+    }
 
-        // Prismoidal volume = L/6 * (A1 + 4Am + A2)
-        const vPrism = (p.L / 6.0) * (layerAreaA + 4 * layerAreaM + layerAreaB);
-        const vEndArea = ((layerAreaA + layerAreaB) / 2.0) * p.L;
-        const vLoose = vPrism * l.shrinkage;
-        const trucks = Math.ceil(vLoose / p.truckCap);
+    function calculateAllQuantities() {
+      const W = Math.max(2.0, parseFloat(document.getElementById('globalWidth').value) || 9.0);
+      const sFill = Math.max(0.2, parseFloat(document.getElementById('globalFillSlope').value) || 1.5);
+      const sCut = Math.max(0.2, parseFloat(document.getElementById('globalCutSlope').value) || 1.0);
+      const shrinkFill = Math.max(1.0, parseFloat(document.getElementById('shrinkageFill').value) || 1.25);
+      const swellCut = Math.max(1.0, parseFloat(document.getElementById('swellCut').value) || 1.20);
+      const truckCap = Math.max(1.0, parseFloat(document.getElementById('truckCapacity').value) || 10.0);
 
-        cumThickness += t;
+      const activeLayers = pavementLayers.filter(l => l.enabled);
+      const totalPaveThick = activeLayers.reduce((s, l) => s + l.thickness, 0);
 
+      // Station geometries
+      const stGeoms = stations.map(st => computeStationGeometry(st, W, sFill, sCut, activeLayers, totalPaveThick));
+
+      // Intervals (Average End Area)
+      const intervals = [];
+      let totalCutCompacted = 0;
+      let totalFillCompacted = 0;
+
+      for (let i = 0; i < stGeoms.length - 1; i++) {
+        const st1 = stGeoms[i];
+        const st2 = stGeoms[i + 1];
+        const length = Math.max(0, st2.chainage - st1.chainage);
+
+        const avgCutArea = (st1.cutArea + st2.cutArea) / 2.0;
+        const avgFillArea = (st1.fillArea + st2.fillArea) / 2.0;
+
+        const cutVol = avgCutArea * length;
+        const fillVol = avgFillArea * length;
+        const fillLoose = fillVol * shrinkFill;
+        const trucks = Math.ceil(fillLoose / truckCap);
+
+        totalCutCompacted += cutVol;
+        totalFillCompacted += fillVol;
+
+        intervals.push({
+          fromSta: st1.name,
+          toSta: st2.name,
+          length,
+          avgCutArea,
+          cutVol,
+          avgFillArea,
+          fillVol,
+          fillLoose,
+          trucks
+        });
+      }
+
+      // Total Corridor Pavement Quantities
+      const totalLength = stGeoms.length > 1 ? (stGeoms[stGeoms.length - 1].chainage - stGeoms[0].chainage) : 0;
+      const pavementSummary = activeLayers.map(layer => {
+        const volCompacted = W * layer.thickness * totalLength;
+        const volLoose = volCompacted * layer.shrinkage;
         return {
-          ...l,
-          index: index + 1,
-          areaA: layerAreaA,
-          areaB: layerAreaB,
-          areaM: layerAreaM,
-          vCompacted: vPrism,
-          vEndArea: vEndArea,
-          vLoose: vLoose,
-          trucks: trucks
+          ...layer,
+          volCompacted,
+          volLoose,
+          trucks: Math.ceil(volLoose / truckCap)
         };
       });
 
-      // Bottom Embankment Earth Fill calculation
-      // Effective embankment fill heights
-      const fillHeightA = Math.max(0, p.hA - cumThickness);
-      const fillHeightB = Math.max(0, p.hB - cumThickness);
-      const fillHeightM = Math.max(0, hM - cumThickness);
-
-      // Embankment fill area = Total area - Sum of all layer areas
-      const layersAreaSumA = layerCalcs.reduce((acc, c) => acc + c.areaA, 0);
-      const layersAreaSumB = layerCalcs.reduce((acc, c) => acc + c.areaB, 0);
-      const layersAreaSumM = layerCalcs.reduce((acc, c) => acc + c.areaM, 0);
-
-      const earthFillAreaA = Math.max(0, totalAreaA - layersAreaSumA);
-      const earthFillAreaB = Math.max(0, totalAreaB - layersAreaSumB);
-      const earthFillAreaM = Math.max(0, totalAreaM - layersAreaSumM);
-
-      const earthFillPrism = (p.L / 6.0) * (earthFillAreaA + 4 * earthFillAreaM + earthFillAreaB);
-      const earthFillEndArea = ((earthFillAreaA + earthFillAreaB) / 2.0) * p.L;
-      const earthFillLoose = earthFillPrism * p.embankmentShrinkage;
-      const earthFillTrucks = Math.ceil(earthFillLoose / p.truckCap);
-
-      const earthFillRecord = {
-        id: 'layer_earthfill',
-        name: 'ดินถมคันทาง (Embankment Fill)',
-        type: 'earth',
-        thickness: (p.hA + p.hB) / 2 - cumThickness,
-        shrinkage: p.embankmentShrinkage,
-        unitCost: p.soilPrice,
-        areaA: earthFillAreaA,
-        areaB: earthFillAreaB,
-        vCompacted: earthFillPrism,
-        vEndArea: earthFillEndArea,
-        vLoose: earthFillLoose,
-        trucks: earthFillTrucks,
-        isBase: true
-      };
-
-      // Summary totals
-      const totalCompact = layerCalcs.reduce((a, c) => a + c.vCompacted, 0) + earthFillPrism;
-      const totalLoose = layerCalcs.reduce((a, c) => a + c.vLoose, 0) + earthFillLoose;
-      const totalTrucks = layerCalcs.reduce((a, c) => a + c.trucks, 0) + earthFillTrucks;
+      const totalFillLoose = totalFillCompacted * shrinkFill;
+      const totalTrucks = Math.ceil(totalFillLoose / truckCap);
 
       return {
-        p,
-        totalAreaA,
-        totalAreaB,
-        cumThickness,
-        layerCalcs,
-        earthFillRecord,
-        totalCompact,
-        totalLoose,
-        totalTrucks
+        W,
+        sFill,
+        sCut,
+        shrinkFill,
+        swellCut,
+        truckCap,
+        activeLayers,
+        totalPaveThick,
+        stGeoms,
+        intervals,
+        totalCutCompacted,
+        totalFillCompacted,
+        totalFillLoose,
+        totalTrucks,
+        totalLength,
+        pavementSummary
       };
     }
 
     function recalculateAll() {
-      const results = computeCalculations();
+      const q = calculateAllQuantities();
 
-      // Top metrics
-      document.getElementById('statAreaA').textContent = results.totalAreaA.toFixed(2);
-      document.getElementById('statAreaB').textContent = results.totalAreaB.toFixed(2);
-      document.getElementById('statTotalPrism').textContent = results.totalCompact.toFixed(2);
-      document.getElementById('statTrucks').textContent = results.totalTrucks.toLocaleString();
+      // Update Top Metrics
+      document.getElementById('metricTotalCutCompacted').textContent = q.totalCutCompacted.toFixed(2);
+      document.getElementById('metricTotalFillCompacted').textContent = q.totalFillCompacted.toFixed(2);
+      document.getElementById('metricTotalFillLoose').textContent = q.totalFillLoose.toFixed(2);
+      document.getElementById('metricTotalTrucks').textContent = q.totalTrucks.toLocaleString();
 
-      // Table generation
-      const tbody = document.getElementById('boqTableBody');
-      const allRows = [...results.layerCalcs, results.earthFillRecord];
-
-      tbody.innerHTML = allRows.map((r, i) => {
-        const isBase = r.isBase;
+      // Populate BOQ Table
+      const tbody = document.getElementById('earthworkTableBody');
+      tbody.innerHTML = q.intervals.map(row => {
         return `
-          <tr class="${isBase ? 'bg-amber-950/20 text-amber-200' : 'hover:bg-slate-800/40'}">
-            <td class="py-2 px-3 flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-sm inline-block" style="background-color: ${isBase ? '#b45309' : (MATERIAL_TYPES[r.type]?.color || '#38bdf8')}"></span>
-              <span class="font-sans font-medium text-slate-200 ${isBase ? 'font-bold text-amber-300' : ''}">${r.name}</span>
-            </td>
-            <td class="py-2 px-2 text-right">${isBase ? '-' : r.thickness.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right">${r.areaA.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right">${r.areaB.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right text-slate-200 font-semibold">${r.vCompacted.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right text-slate-400">&times;${r.shrinkage.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right text-sky-400 font-bold">${r.vLoose.toFixed(2)}</td>
-            <td class="py-2 px-3 text-right text-amber-300 font-semibold">${r.trucks.toLocaleString()}</td>
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="py-2 px-3 font-semibold text-white">Sta. ${row.fromSta} &rarr; ${row.toSta}</td>
+            <td class="py-2 px-2 text-right">${row.length.toFixed(1)}</td>
+            <td class="py-2 px-2 text-right text-rose-300 font-mono">${row.avgCutArea.toFixed(2)}</td>
+            <td class="py-2 px-2 text-right text-rose-400 font-mono font-bold">${row.cutVol.toFixed(2)}</td>
+            <td class="py-2 px-2 text-right text-sky-300 font-mono">${row.avgFillArea.toFixed(2)}</td>
+            <td class="py-2 px-2 text-right text-sky-400 font-mono font-bold">${row.fillVol.toFixed(2)}</td>
+            <td class="py-2 px-2 text-right text-amber-300 font-mono font-bold">${row.fillLoose.toFixed(2)}</td>
+            <td class="py-2 px-3 text-right text-emerald-300 font-mono font-semibold">${row.trucks.toLocaleString()}</td>
           </tr>
         `;
       }).join('');
 
-      document.getElementById('tfootTotalCompacted').textContent = results.totalCompact.toFixed(2) + ' m³';
-      document.getElementById('tfootTotalLoose').textContent = results.totalLoose.toFixed(2) + ' m³';
-      document.getElementById('tfootTotalTrucks').textContent = results.totalTrucks.toLocaleString() + ' เที่ยว';
+      document.getElementById('tfootCutTotal').textContent = q.totalCutCompacted.toFixed(2) + ' m³';
+      document.getElementById('tfootFillTotal').textContent = q.totalFillCompacted.toFixed(2) + ' m³';
+      document.getElementById('tfootFillLooseTotal').textContent = q.totalFillLoose.toFixed(2) + ' m³';
+      document.getElementById('tfootTrucksTotal').textContent = q.totalTrucks.toLocaleString() + ' เที่ยว';
 
-      // Update Legend Badge
-      updateLegendBadge(results.layerCalcs);
-
-      // Render 2D SVG
-      render2DCrossSections(results);
-
-      // Update 3D Model
-      update3DScene(results);
-    }
-
-    function updateLegendBadge(activeLayers) {
-      const badgeContainer = document.getElementById('materialLegend');
-      const items = activeLayers.map(l => {
-        const mat = MATERIAL_TYPES[l.type] || MATERIAL_TYPES.concrete;
+      // Pavement Badges
+      const pBadges = document.getElementById('pavementSummaryBadges');
+      pBadges.innerHTML = q.pavementSummary.map(p => {
         return `
-          <div class="flex items-center gap-1.5">
-            <span class="w-3 h-3 rounded-sm" style="background-color: ${mat.color}"></span>
-            <span class="text-slate-300 text-[11px]">${l.name} (${l.thickness * 100}cm)</span>
+          <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+            <span class="text-[10px] text-slate-400 block truncate">${p.name}</span>
+            <div class="flex items-baseline gap-1 mt-0.5">
+              <span class="text-sm font-bold text-amber-400 font-mono">${p.volCompacted.toFixed(1)}</span>
+              <span class="text-[10px] text-slate-500">m³ (แน่น)</span>
+            </div>
+            <span class="text-[10px] text-slate-400 mt-1 block">&asymp; ${p.volLoose.toFixed(1)} m³ (${p.trucks} รถ)</span>
           </div>
         `;
-      });
-      items.push(`
-        <div class="flex items-center gap-1.5">
-          <span class="w-3 h-3 rounded-sm bg-amber-800"></span>
-          <span class="text-amber-300 text-[11px] font-bold">ดินถมคันทางฐานล่าง</span>
-        </div>
-      `);
-      badgeContainer.innerHTML = items.join('');
+      }).join('');
+
+      // Refresh Graphics
+      render2DCrossSection(q);
+      renderLongitudinalProfile(q);
+      update3DCorridor(q);
     }
 
-    function render2DCrossSections(calc) {
+    function render2DCrossSection(calcData) {
+      if (!calcData) calcData = calculateAllQuantities();
+      const st = calcData.stGeoms[selectedStationIndex] || calcData.stGeoms[0];
+      if (!st) return;
+
       const svgGroup = document.getElementById('svgViewport');
       const svg = document.getElementById('crossSectionSvg');
       const rect = svg.getBoundingClientRect();
@@ -950,336 +936,403 @@
 
       svgGroup.innerHTML = '';
 
-      const p = calc.p;
-      // Dimensions at A & B
-      const baseWidthA = p.width + 2 * p.s * p.hA;
-      const baseWidthB = p.width + 2 * p.s * p.hB;
-      const maxSpan = Math.max(baseWidthA, baseWidthB, 12);
-      const maxHeight = Math.max(p.hA, p.hB, 3.5);
+      const cx = viewW / 2;
+      const cy = viewH * 0.55;
+      const W = calcData.W;
+      const diff = st.dfl - st.egl;
+      const isFill = diff >= 0;
+      const absDiff = Math.abs(diff);
 
-      // Transform Scale
-      const scaleX = (viewW * 0.42) / maxSpan;
-      const scaleY = (viewH * 0.50) / maxHeight;
-      const scale = Math.min(scaleX, scaleY);
+      // Adaptive Scale
+      const maxSpan = Math.max(st.baseWidth, W, 14);
+      const maxHeight = Math.max(absDiff + calcData.totalPaveThick, 3.5);
+      const scale = Math.min((viewW * 0.65) / maxSpan, (viewH * 0.55) / maxHeight);
 
-      // Centers for STA. A (left) and STA. B (right)
-      const centerA_X = viewW * 0.26;
-      const centerB_X = viewW * 0.74;
-      const groundY = viewH * 0.75;
+      const halfW = (W / 2.0) * scale;
+      const paveThickPx = calcData.totalPaveThick * scale;
+      const eglY = cy;
 
-      // Draw STA A & STA B
-      drawSingleCrossSection(svgGroup, 'STA. A (จุดเริ่มต้น)', centerA_X, groundY, scale, p.width, p.hA, p.s, p.crossSlope, calc.layerCalcs, calc.totalAreaA);
-      drawSingleCrossSection(svgGroup, 'STA. B (จุดสิ้นสุด)', centerB_X, groundY, scale, p.width, p.hB, p.s, p.crossSlope, calc.layerCalcs, calc.totalAreaB);
+      // 1. Natural Ground Line (EGL)
+      const eglSpan = Math.max(halfW * 2.8, (st.baseWidth / 2) * scale + 60);
+      const groundLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      groundLine.setAttribute('x1', cx - eglSpan);
+      groundLine.setAttribute('y1', eglY);
+      groundLine.setAttribute('x2', cx + eglSpan);
+      groundLine.setAttribute('y2', eglY);
+      groundLine.setAttribute('stroke', '#64748b');
+      groundLine.setAttribute('stroke-width', '2');
+      groundLine.setAttribute('stroke-dasharray', '8 4');
+      svgGroup.appendChild(groundLine);
 
-      // Center Divider line
-      const divider = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      divider.setAttribute('x1', viewW * 0.5);
-      divider.setAttribute('y1', 30);
-      divider.setAttribute('x2', viewW * 0.5);
-      divider.setAttribute('y2', viewH - 45);
-      divider.setAttribute('stroke', '#334155');
-      divider.setAttribute('stroke-dasharray', '4 4');
-      divider.setAttribute('stroke-width', '1');
-      svgGroup.appendChild(divider);
+      // EGL Label
+      const eglText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      eglText.setAttribute('x', cx - eglSpan + 10);
+      eglText.setAttribute('y', eglY - 8);
+      eglText.setAttribute('fill', '#94a3b8');
+      eglText.setAttribute('font-size', '10');
+      eglText.setAttribute('font-family', 'JetBrains Mono');
+      eglText.textContent = `ระดับดินเดิม EGL = ${st.egl.toFixed(2)} m.`;
+      svgGroup.appendChild(eglText);
 
+      // Title & Elevation Tag
+      const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      title.setAttribute('x', cx);
+      title.setAttribute('y', 35);
+      title.setAttribute('text-anchor', 'middle');
+      title.setAttribute('fill', '#f8fafc');
+      title.setAttribute('font-size', '14');
+      title.setAttribute('font-weight', 'bold');
+      title.setAttribute('font-family', 'Chakra Petch');
+      title.textContent = `รูปตัดขวาง STA. ${st.name} [${isFill ? 'งานคันทางดินถม (FILL)' : 'งานดินขุดตัด (CUT)'}]`;
+      svgGroup.appendChild(title);
+
+      const subtitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      subtitle.setAttribute('x', cx);
+      subtitle.setAttribute('y', 55);
+      subtitle.setAttribute('text-anchor', 'middle');
+      subtitle.setAttribute('fill', isFill ? '#38bdf8' : '#f87171');
+      subtitle.setAttribute('font-size', '11');
+      subtitle.setAttribute('font-family', 'JetBrains Mono');
+      subtitle.textContent = isFill
+        ? `ความสูงคันถม h = ${diff.toFixed(2)} m. | พท.ถมสุทธิ = ${st.fillArea.toFixed(2)} ตร.ม.`
+        : `ความลึกดินตัด d = ${absDiff.toFixed(2)} m. | พท.ดินขุดตัด = ${st.cutArea.toFixed(2)} ตร.ม.`;
+      svgGroup.appendChild(subtitle);
+
+      if (isFill) {
+        // ----------------- FILL EMBANKMENT SCENARIO -----------------
+        const topY = eglY - (diff * scale);
+        const baseHalfW = halfW + (calcData.sFill * diff) * scale;
+
+        // Fill Trapezoid
+        const fillPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        fillPoly.setAttribute('points', `
+          ${cx - baseHalfW},${eglY} 
+          ${cx - halfW},${topY} 
+          ${cx + halfW},${topY} 
+          ${cx + baseHalfW},${eglY}
+        `);
+        fillPoly.setAttribute('fill', 'url(#patFill)');
+        fillPoly.setAttribute('stroke', '#0ea5e9');
+        fillPoly.setAttribute('stroke-width', '1.5');
+        fillPoly.setAttribute('opacity', '0.85');
+        svgGroup.appendChild(fillPoly);
+
+        // Draw Pavement Layers stacked from topY downwards
+        let curY = topY;
+        calcData.activeLayers.forEach(l => {
+          const lh = l.thickness * scale;
+          const layPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          layPoly.setAttribute('points', `
+            ${cx - halfW},${curY} 
+            ${cx + halfW},${curY} 
+            ${cx + halfW},${curY + lh} 
+            ${cx - halfW},${curY + lh}
+          `);
+          const mat = MATERIAL_TYPES[l.type] || MATERIAL_TYPES.concrete;
+          layPoly.setAttribute('fill', mat.hatch);
+          layPoly.setAttribute('stroke', mat.color);
+          layPoly.setAttribute('stroke-width', '1');
+          svgGroup.appendChild(layPoly);
+          curY += lh;
+        });
+
+        // Dimensions: Road Width W
+        drawDimLine(svgGroup, cx - halfW, topY - 16, cx + halfW, topY - 16, `W = ${W.toFixed(2)} m.`, '#38bdf8');
+        // Dimensions: Height h
+        drawDimLine(svgGroup, cx + baseHalfW + 15, eglY, cx + baseHalfW + 15, topY, `h = ${diff.toFixed(2)} m.`, '#38bdf8', true);
+        // Base Width B
+        drawDimLine(svgGroup, cx - baseHalfW, eglY + 25, cx + baseHalfW, eglY + 25, `B = ${st.baseWidth.toFixed(2)} m.`, '#94a3b8');
+
+      } else {
+        // ----------------- CUT EXCAVATION SCENARIO -----------------
+        const roadbedY = eglY + (absDiff * scale) + paveThickPx;
+        const formationY = eglY + (absDiff * scale);
+        const cutDepthTotal = absDiff + calcData.totalPaveThick;
+        const topCutHalfW = halfW + (calcData.sCut * cutDepthTotal) * scale;
+
+        // Cut Trench Polygon
+        const cutPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        cutPoly.setAttribute('points', `
+          ${cx - topCutHalfW},${eglY} 
+          ${cx - halfW},${roadbedY} 
+          ${cx + halfW},${roadbedY} 
+          ${cx + topCutHalfW},${eglY}
+        `);
+        cutPoly.setAttribute('fill', 'url(#patCut)');
+        cutPoly.setAttribute('stroke', '#ef4444');
+        cutPoly.setAttribute('stroke-width', '1.5');
+        cutPoly.setAttribute('opacity', '0.85');
+        svgGroup.appendChild(cutPoly);
+
+        // Pavement Layers in Box Cut (between formationY and roadbedY)
+        let curY = formationY;
+        calcData.activeLayers.forEach(l => {
+          const lh = l.thickness * scale;
+          const layPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          layPoly.setAttribute('points', `
+            ${cx - halfW},${curY} 
+            ${cx + halfW},${curY} 
+            ${cx + halfW},${curY + lh} 
+            ${cx - halfW},${curY + lh}
+          `);
+          const mat = MATERIAL_TYPES[l.type] || MATERIAL_TYPES.concrete;
+          layPoly.setAttribute('fill', mat.hatch);
+          layPoly.setAttribute('stroke', mat.color);
+          layPoly.setAttribute('stroke-width', '1');
+          svgGroup.appendChild(layPoly);
+          curY += lh;
+        });
+
+        // Dimensions: Roadbed W
+        drawDimLine(svgGroup, cx - halfW, roadbedY + 20, cx + halfW, roadbedY + 20, `W = ${W.toFixed(2)} m.`, '#f87171');
+        // Dimensions: Cut Depth d
+        drawDimLine(svgGroup, cx + topCutHalfW + 15, eglY, cx + topCutHalfW + 15, roadbedY, `d = ${cutDepthTotal.toFixed(2)} m.`, '#f87171', true);
+      }
+
+      // Update Section Legend
+      updateSectionLegendBadge(calcData.activeLayers, isFill);
       applySvgTransform();
     }
 
-    function drawSingleCrossSection(svgGroup, title, cx, groundY, scale, roadW, height, s, crossSlope, layers, totalArea) {
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    function drawDimLine(svg, x1, y1, x2, y2, text, color, isVertical = false) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      line.setAttribute('stroke', color);
+      line.setAttribute('stroke-width', '1.2');
+      line.setAttribute('marker-start', 'url(#arrow)');
+      line.setAttribute('marker-end', 'url(#arrow)');
+      svg.appendChild(line);
 
-      const halfW = (roadW / 2.0) * scale;
-      const baseHalfW = halfW + (s * height) * scale;
-      const topY = groundY - (height * scale);
-      const crownDrop = (roadW / 2.0 * crossSlope) * scale;
-
-      // 1. Natural Ground Line (เส้นระดับดินเดิม)
-      const glSpan = baseHalfW + 35;
-      const groundLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      groundLine.setAttribute('x1', cx - glSpan);
-      groundLine.setAttribute('y1', groundY);
-      groundLine.setAttribute('x2', cx + glSpan);
-      groundLine.setAttribute('y2', groundY);
-      groundLine.setAttribute('stroke', '#64748b');
-      groundLine.setAttribute('stroke-width', '2');
-      groundLine.setAttribute('stroke-dasharray', '6 3');
-      g.appendChild(groundLine);
-
-      // Ground Label
-      const glText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      glText.setAttribute('x', cx - glSpan + 5);
-      glText.setAttribute('y', groundY + 14);
-      glText.setAttribute('fill', '#94a3b8');
-      glText.setAttribute('font-size', '9');
-      glText.textContent = 'ระดับดินเดิม (NGL)';
-      g.appendChild(glText);
-
-      // 2. Main Embankment Earth Body (Polygon)
-      // Top points with crown: (cx - halfW, topY + crownDrop), (cx, topY), (cx + halfW, topY + crownDrop)
-      // Bottom points: (cx + baseHalfW, groundY), (cx - baseHalfW, groundY)
-      const fillPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-      const pts = [
-        `${cx - baseHalfW},${groundY}`,
-        `${cx - halfW},${topY + crownDrop}`,
-        `${cx},${topY}`,
-        `${cx + halfW},${topY + crownDrop}`,
-        `${cx + baseHalfW},${groundY}`
-      ].join(' ');
-      fillPoly.setAttribute('points', pts);
-      fillPoly.setAttribute('fill', 'url(#hatchEarth)');
-      fillPoly.setAttribute('stroke', '#a16207');
-      fillPoly.setAttribute('stroke-width', '1.5');
-      g.appendChild(fillPoly);
-
-      // 3. Draw each layer from top downwards
-      let cumY = 0;
-      layers.forEach(layer => {
-        const layerThickPx = layer.thickness * scale;
-        const layerTopY = topY + cumY;
-        const layerBotY = layerTopY + layerThickPx;
-
-        const layerPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        const lPts = [
-          `${cx - halfW},${layerTopY + crownDrop}`,
-          `${cx},${layerTopY}`,
-          `${cx + halfW},${layerTopY + crownDrop}`,
-          `${cx + halfW},${layerBotY + crownDrop}`,
-          `${cx},${layerBotY}`,
-          `${cx - halfW},${layerBotY + crownDrop}`
-        ].join(' ');
-
-        const mat = MATERIAL_TYPES[layer.type] || MATERIAL_TYPES.concrete;
-        layerPoly.setAttribute('points', lPts);
-        layerPoly.setAttribute('fill', mat.hatch);
-        layerPoly.setAttribute('stroke', mat.color);
-        layerPoly.setAttribute('stroke-width', '1');
-        layerPoly.setAttribute('opacity', '0.9');
-        g.appendChild(layerPoly);
-
-        cumY += layerThickPx;
-      });
-
-      // 4. Slope Annotation (1:s)
-      const slopeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      const midSlopeX = cx + halfW + (baseHalfW - halfW) * 0.5 + 8;
-      const midSlopeY = topY + (groundY - topY) * 0.5;
-      slopeText.setAttribute('x', midSlopeX);
-      slopeText.setAttribute('y', midSlopeY);
-      slopeText.setAttribute('fill', '#38bdf8');
-      slopeText.setAttribute('font-size', '10');
-      slopeText.setAttribute('font-family', 'JetBrains Mono');
-      slopeText.textContent = `1:${s.toFixed(2)}`;
-      g.appendChild(slopeText);
-
-      // Slope triangle symbol
-      const trX = cx - halfW - (baseHalfW - halfW) * 0.5 - 12;
-      const trY = midSlopeY - 6;
-      const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-      tri.setAttribute('points', `${trX},${trY} ${trX - 12},${trY} ${trX},${trY - 8}`);
-      tri.setAttribute('fill', 'none');
-      tri.setAttribute('stroke', '#38bdf8');
-      tri.setAttribute('stroke-width', '1');
-      g.appendChild(tri);
-
-      // 5. Dimension Width (W)
-      const dimTopY = topY - 18;
-      const wLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      wLine.setAttribute('x1', cx - halfW);
-      wLine.setAttribute('y1', dimTopY);
-      wLine.setAttribute('x2', cx + halfW);
-      wLine.setAttribute('y2', dimTopY);
-      wLine.setAttribute('stroke', '#38bdf8');
-      wLine.setAttribute('stroke-width', '1.2');
-      wLine.setAttribute('marker-start', 'url(#arrow)');
-      wLine.setAttribute('marker-end', 'url(#arrow)');
-      g.appendChild(wLine);
-
-      const wText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      wText.setAttribute('x', cx);
-      wText.setAttribute('y', dimTopY - 5);
-      wText.setAttribute('text-anchor', 'middle');
-      wText.setAttribute('fill', '#38bdf8');
-      wText.setAttribute('font-size', '11');
-      wText.setAttribute('font-weight', 'bold');
-      wText.setAttribute('font-family', 'JetBrains Mono');
-      wText.textContent = `W = ${roadW.toFixed(2)} m.`;
-      g.appendChild(wText);
-
-      // 6. Dimension Height (h)
-      const dimHX = cx + baseHalfW + 18;
-      const hLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      hLine.setAttribute('x1', dimHX);
-      hLine.setAttribute('y1', groundY);
-      hLine.setAttribute('x2', dimHX);
-      hLine.setAttribute('y2', topY);
-      hLine.setAttribute('stroke', '#f59e0b');
-      hLine.setAttribute('stroke-width', '1.2');
-      hLine.setAttribute('marker-start', 'url(#arrowAmber)');
-      hLine.setAttribute('marker-end', 'url(#arrowAmber)');
-      g.appendChild(hLine);
-
-      const hText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      hText.setAttribute('x', dimHX + 6);
-      hText.setAttribute('y', (groundY + topY) / 2 + 4);
-      hText.setAttribute('fill', '#f59e0b');
-      hText.setAttribute('font-size', '11');
-      hText.setAttribute('font-weight', 'bold');
-      hText.setAttribute('font-family', 'JetBrains Mono');
-      hText.textContent = `h = ${height.toFixed(2)} m.`;
-      g.appendChild(hText);
-
-      // 7. Base Width Dimension (B = W + 2sh)
-      const baseW = roadW + 2 * s * height;
-      const baseDimY = groundY + 28;
-      const bLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      bLine.setAttribute('x1', cx - baseHalfW);
-      bLine.setAttribute('y1', baseDimY);
-      bLine.setAttribute('x2', cx + baseHalfW);
-      bLine.setAttribute('y2', baseDimY);
-      bLine.setAttribute('stroke', '#64748b');
-      bLine.setAttribute('stroke-width', '1');
-      g.appendChild(bLine);
-
-      const bText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      bText.setAttribute('x', cx);
-      bText.setAttribute('y', baseDimY + 12);
-      bText.setAttribute('text-anchor', 'middle');
-      bText.setAttribute('fill', '#94a3b8');
-      bText.setAttribute('font-size', '10');
-      bText.setAttribute('font-family', 'JetBrains Mono');
-      bText.textContent = `B = ${baseW.toFixed(2)} m.`;
-      g.appendChild(bText);
-
-      // Section Title & Calculated Area Banner
-      const titleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      titleText.setAttribute('x', cx);
-      titleText.setAttribute('y', 25);
-      titleText.setAttribute('text-anchor', 'middle');
-      titleText.setAttribute('fill', '#f8fafc');
-      titleText.setAttribute('font-size', '13');
-      titleText.setAttribute('font-weight', 'bold');
-      titleText.setAttribute('font-family', 'Chakra Petch');
-      titleText.textContent = title;
-      g.appendChild(titleText);
-
-      const areaBadge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      areaBadge.setAttribute('x', cx);
-      areaBadge.setAttribute('y', 42);
-      areaBadge.setAttribute('text-anchor', 'middle');
-      areaBadge.setAttribute('fill', '#38bdf8');
-      areaBadge.setAttribute('font-size', '11');
-      areaBadge.setAttribute('font-family', 'JetBrains Mono');
-      areaBadge.textContent = `พื้นที่หน้าตัด A = ${totalArea.toFixed(2)} ตร.ม.`;
-      g.appendChild(areaBadge);
-
-      svgGroup.appendChild(g);
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      if (isVertical) {
+        t.setAttribute('x', x1 + 6);
+        t.setAttribute('y', (y1 + y2) / 2 + 4);
+      } else {
+        t.setAttribute('x', (x1 + x2) / 2);
+        t.setAttribute('y', y1 - 6);
+        t.setAttribute('text-anchor', 'middle');
+      }
+      t.setAttribute('fill', color);
+      t.setAttribute('font-size', '10');
+      t.setAttribute('font-family', 'JetBrains Mono');
+      t.setAttribute('font-weight', 'bold');
+      t.textContent = text;
+      svg.appendChild(t);
     }
 
-    function setupSvgInteractions() {
-      const svg = document.getElementById('crossSectionSvg');
+    function updateSectionLegendBadge(activeLayers, isFill) {
+      const container = document.getElementById('sectionLegend');
+      const items = activeLayers.map(l => {
+        const mat = MATERIAL_TYPES[l.type] || MATERIAL_TYPES.concrete;
+        return `
+          <div class="flex items-center gap-1">
+            <span class="w-2.5 h-2.5 rounded-sm" style="background-color: ${mat.color}"></span>
+            <span class="text-slate-300 text-[10px]">${l.name}</span>
+          </div>
+        `;
+      });
+      items.push(`
+        <div class="flex items-center gap-1">
+          <span class="w-2.5 h-2.5 rounded-sm ${isFill ? 'bg-sky-500' : 'bg-rose-500'}"></span>
+          <span class="text-[10px] ${isFill ? 'text-sky-300' : 'text-rose-300'} font-bold">${isFill ? 'ดินถมคันทาง (Fill)' : 'ดินขุดตัด (Cut)'}</span>
+        </div>
+      `);
+      container.innerHTML = items.join('');
+    }
 
+    // 2D Pan & Zoom Handlers
+    function setupSvg2DInteractions() {
+      const svg = document.getElementById('crossSectionSvg');
       svg.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
-        zoom2D(zoomFactor, e.clientX, e.clientY);
+        const factor = e.deltaY < 0 ? 1.15 : 0.85;
+        zoom2D(factor);
       }, { passive: false });
 
       svg.addEventListener('mousedown', (e) => {
-        svgTransform.isPanning = true;
-        svgTransform.startX = e.clientX - svgTransform.panX;
-        svgTransform.startY = e.clientY - svgTransform.panY;
+        svg2dState.isPanning = true;
+        svg2dState.startX = e.clientX - svg2dState.panX;
+        svg2dState.startY = e.clientY - svg2dState.panY;
       });
 
       window.addEventListener('mousemove', (e) => {
-        if (!svgTransform.isPanning) return;
-        svgTransform.panX = e.clientX - svgTransform.startX;
-        svgTransform.panY = e.clientY - svgTransform.startY;
+        if (!svg2dState.isPanning) return;
+        svg2dState.panX = e.clientX - svg2dState.startX;
+        svg2dState.panY = e.clientY - svg2dState.startY;
         applySvgTransform();
       });
 
       window.addEventListener('mouseup', () => {
-        svgTransform.isPanning = false;
-      });
-
-      // Touch gestures for mobile pinch/drag
-      let touchStartDist = 0;
-      svg.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 1) {
-          svgTransform.isPanning = true;
-          svgTransform.startX = e.touches[0].clientX - svgTransform.panX;
-          svgTransform.startY = e.touches[0].clientY - svgTransform.panY;
-        } else if (e.touches.length === 2) {
-          touchStartDist = Math.hypot(
-            e.touches[0].clientX - e.touches[1].clientX,
-            e.touches[0].clientY - e.touches[1].clientY
-          );
-        }
-      }, { passive: true });
-
-      svg.addEventListener('touchmove', (e) => {
-        if (e.touches.length === 1 && svgTransform.isPanning) {
-          svgTransform.panX = e.touches[0].clientX - svgTransform.startX;
-          svgTransform.panY = e.touches[0].clientY - svgTransform.startY;
-          applySvgTransform();
-        } else if (e.touches.length === 2 && touchStartDist > 0) {
-          const currentDist = Math.hypot(
-            e.touches[0].clientX - e.touches[1].clientX,
-            e.touches[0].clientY - e.touches[1].clientY
-          );
-          const factor = currentDist / touchStartDist;
-          if (factor > 0.6 && factor < 1.6) {
-            svgTransform.zoom = Math.min(Math.max(0.4, svgTransform.zoom * (1 + (factor - 1) * 0.5)), 4.0);
-            applySvgTransform();
-          }
-          touchStartDist = currentDist;
-        }
-      }, { passive: true });
-
-      svg.addEventListener('touchend', () => {
-        svgTransform.isPanning = false;
+        svg2dState.isPanning = false;
       });
     }
 
     function zoom2D(factor) {
-      svgTransform.zoom = Math.min(Math.max(0.4, svgTransform.zoom * factor), 4.0);
+      svg2dState.zoom = Math.min(Math.max(0.4, svg2dState.zoom * factor), 4.5);
       applySvgTransform();
     }
 
     function reset2DView() {
-      svgTransform.zoom = 1;
-      svgTransform.panX = 0;
-      svgTransform.panY = 0;
+      svg2dState.zoom = 1;
+      svg2dState.panX = 0;
+      svg2dState.panY = 0;
       applySvgTransform();
     }
 
     function applySvgTransform() {
       const g = document.getElementById('svgViewport');
       if (g) {
-        g.setAttribute('transform', `translate(${svgTransform.panX}, ${svgTransform.panY}) scale(${svgTransform.zoom})`);
+        g.setAttribute('transform', `translate(${svg2dState.panX}, ${svg2dState.panY}) scale(${svg2dState.zoom})`);
       }
     }
 
-    let scene3D, camera3D, renderer3D, controls3D;
-    let roadMeshesGroup;
+    function renderLongitudinalProfile(calcData) {
+      if (!calcData) calcData = calculateAllQuantities();
+      const svg = document.getElementById('profileSvg');
+      const g = document.getElementById('profileViewport');
+      const rect = svg.getBoundingClientRect();
+      const W = rect.width || 700;
+      const H = rect.height || 420;
+
+      g.innerHTML = '';
+      const stList = calcData.stGeoms;
+      if (stList.length < 2) return;
+
+      const padL = 60, padR = 40, padT = 50, padB = 60;
+      const chartW = W - padL - padR;
+      const chartH = H - padT - padB;
+
+      // Range
+      const minCh = stList[0].chainage;
+      const maxCh = stList[stList.length - 1].chainage;
+      const allElevs = stList.flatMap(s => [s.egl, s.dfl]);
+      let minEl = Math.min(...allElevs) - 1.0;
+      let maxEl = Math.max(...allElevs) + 1.0;
+
+      const toX = (ch) => padL + ((ch - minCh) / (maxCh - minCh || 1)) * chartW;
+      const toY = (el) => padT + chartH - ((el - minEl) / (maxEl - minEl || 1)) * chartH;
+
+      // Grid lines
+      for (let i = 0; i <= 5; i++) {
+        const elVal = minEl + (i / 5) * (maxEl - minEl);
+        const yPos = toY(elVal);
+        const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        gridLine.setAttribute('x1', padL);
+        gridLine.setAttribute('y1', yPos);
+        gridLine.setAttribute('x2', W - padR);
+        gridLine.setAttribute('y2', yPos);
+        gridLine.setAttribute('stroke', '#1e293b');
+        gridLine.setAttribute('stroke-width', '1');
+        g.appendChild(gridLine);
+
+        const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        lbl.setAttribute('x', padL - 8);
+        lbl.setAttribute('y', yPos + 4);
+        lbl.setAttribute('text-anchor', 'end');
+        lbl.setAttribute('fill', '#64748b');
+        lbl.setAttribute('font-size', '10');
+        lbl.setAttribute('font-family', 'JetBrains Mono');
+        lbl.textContent = elVal.toFixed(1);
+        g.appendChild(lbl);
+      }
+
+      // Draw Cut/Fill shaded polygon between EGL and DFL
+      let fillCutPts1 = [];
+      let fillCutPts2 = [];
+      stList.forEach(s => {
+        fillCutPts1.push(`${toX(s.chainage)},${toY(s.dfl)}`);
+        fillCutPts2.unshift(`${toX(s.chainage)},${toY(s.egl)}`);
+      });
+
+      const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      poly.setAttribute('points', fillCutPts1.concat(fillCutPts2).join(' '));
+      poly.setAttribute('fill', '#0ea5e9');
+      poly.setAttribute('opacity', '0.15');
+      g.appendChild(poly);
+
+      // Lines for EGL & DFL
+      let eglPath = '';
+      let dflPath = '';
+      stList.forEach((s, idx) => {
+        const x = toX(s.chainage);
+        const yE = toY(s.egl);
+        const yD = toY(s.dfl);
+
+        eglPath += (idx === 0 ? 'M' : 'L') + `${x},${yE} `;
+        dflPath += (idx === 0 ? 'M' : 'L') + `${x},${yD} `;
+
+        // Vertical guide per station
+        const vGuide = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        vGuide.setAttribute('x1', x);
+        vGuide.setAttribute('y1', padT);
+        vGuide.setAttribute('x2', x);
+        vGuide.setAttribute('y2', H - padB);
+        vGuide.setAttribute('stroke', '#334155');
+        vGuide.setAttribute('stroke-dasharray', '3 3');
+        g.appendChild(vGuide);
+
+        // Station label bottom
+        const staLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        staLbl.setAttribute('x', x);
+        staLbl.setAttribute('y', H - padB + 18);
+        staLbl.setAttribute('text-anchor', 'middle');
+        staLbl.setAttribute('fill', '#cbd5e1');
+        staLbl.setAttribute('font-size', '10');
+        staLbl.setAttribute('font-family', 'JetBrains Mono');
+        staLbl.textContent = s.name;
+        g.appendChild(staLbl);
+      });
+
+      // EGL Polyline (Dashed Amber)
+      const pEGL = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pEGL.setAttribute('d', eglPath);
+      pEGL.setAttribute('fill', 'none');
+      pEGL.setAttribute('stroke', '#f59e0b');
+      pEGL.setAttribute('stroke-width', '2.5');
+      pEGL.setAttribute('stroke-dasharray', '6 3');
+      g.appendChild(pEGL);
+
+      // DFL Polyline (Solid Sky Blue)
+      const pDFL = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pDFL.setAttribute('d', dflPath);
+      pDFL.setAttribute('fill', 'none');
+      pDFL.setAttribute('stroke', '#38bdf8');
+      pDFL.setAttribute('stroke-width', '3');
+      g.appendChild(pDFL);
+
+      // Title & Legend
+      const chartTitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      chartTitle.setAttribute('x', W / 2);
+      chartTitle.setAttribute('y', 25);
+      chartTitle.setAttribute('text-anchor', 'middle');
+      chartTitle.setAttribute('fill', '#f8fafc');
+      chartTitle.setAttribute('font-size', '13');
+      chartTitle.setAttribute('font-weight', 'bold');
+      chartTitle.setAttribute('font-family', 'Chakra Petch');
+      chartTitle.textContent = 'รูปตัดตามยาว Profile แนวคันทาง (Longitudinal Alignment: EGL vs DFL)';
+      g.appendChild(chartTitle);
+    }
 
     function init3DScene() {
-      const container = document.getElementById('threeCanvasHolder');
+      const container = document.getElementById('webglContainer');
       if (!container) return;
 
-      const width = container.clientWidth || 600;
-      const height = container.clientHeight || 450;
+      const w = container.clientWidth || 700;
+      const h = container.clientHeight || 420;
 
       scene3D = new THREE.Scene();
-      scene3D.background = new THREE.Color(0x020617); // Slate-950
+      scene3D.background = new THREE.Color(0x020617);
 
-      camera3D = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-      camera3D.position.set(25, 20, 45);
+      camera3D = new THREE.PerspectiveCamera(45, w / h, 0.1, 2000);
+      camera3D.position.set(40, 35, 70);
 
       renderer3D = new THREE.WebGLRenderer({ antialias: true });
-      renderer3D.setSize(width, height);
+      renderer3D.setSize(w, h);
       renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer3D.shadowMap.enabled = true;
-      renderer3D.shadowMap.type = THREE.PCFSoftShadowMap;
 
       container.innerHTML = '';
       container.appendChild(renderer3D.domElement);
@@ -1287,37 +1340,31 @@
       controls3D = new THREE.OrbitControls(camera3D, renderer3D.domElement);
       controls3D.enableDamping = true;
       controls3D.dampingFactor = 0.05;
-      controls3D.maxPolarAngle = Math.PI / 2 + 0.05; // Do not go below horizon
-      controls3D.target.set(0, 2, 0);
+      controls3D.target.set(0, 0, 0);
 
-      // Lighting
-      const hemiLight = new THREE.HemisphereLight(0xffffff, 0x1e293b, 0.8);
+      // Lights
+      const hemiLight = new THREE.HemisphereLight(0xffffff, 0x1e293b, 0.85);
       scene3D.add(hemiLight);
 
       const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-      dirLight.position.set(30, 45, 20);
+      dirLight.position.set(50, 80, 40);
       dirLight.castShadow = true;
-      dirLight.shadow.mapSize.width = 1024;
-      dirLight.shadow.mapSize.height = 1024;
       scene3D.add(dirLight);
 
-      // Subtle ground grid
-      const grid = new THREE.GridHelper(120, 60, 0x38bdf8, 0x1e293b);
-      grid.position.y = -0.02;
+      // Subtle Grid
+      const grid = new THREE.GridHelper(200, 40, 0x38bdf8, 0x1e293b);
+      grid.position.y = -0.1;
       scene3D.add(grid);
 
-      roadMeshesGroup = new THREE.Group();
-      scene3D.add(roadMeshesGroup);
+      corridor3DGroup = new THREE.Group();
+      scene3D.add(corridor3DGroup);
 
-      // Handle Resizing
-      window.addEventListener('resize', onWindowResize3D);
-
-      // Start animation loop
+      window.addEventListener('resize', onResize3D);
       animate3D();
     }
 
-    function onWindowResize3D() {
-      const container = document.getElementById('threeCanvasHolder');
+    function onResize3D() {
+      const container = document.getElementById('webglContainer');
       if (!container || !renderer3D || !camera3D) return;
       const w = container.clientWidth;
       const h = container.clientHeight;
@@ -1336,15 +1383,15 @@
 
     function reset3DCamera() {
       if (camera3D && controls3D) {
-        camera3D.position.set(25, 20, 45);
-        controls3D.target.set(0, 2, 0);
+        camera3D.position.set(40, 35, 70);
+        controls3D.target.set(0, 0, 0);
         controls3D.update();
       }
     }
 
     function toggleExplode3D() {
       is3DExploded = !is3DExploded;
-      const btn = document.getElementById('explodeBtn');
+      const btn = document.getElementById('explode3dBtn');
       if (is3DExploded) {
         btn.classList.add('bg-amber-500', 'text-slate-950', 'font-bold');
         btn.classList.remove('text-amber-300', 'bg-slate-800');
@@ -1357,7 +1404,7 @@
 
     function toggleWireframe3D() {
       is3DWireframe = !is3DWireframe;
-      const btn = document.getElementById('wireframeBtn');
+      const btn = document.getElementById('wireframe3dBtn');
       if (is3DWireframe) {
         btn.classList.add('bg-sky-500', 'text-slate-950', 'font-bold');
         btn.classList.remove('text-slate-300', 'bg-slate-800');
@@ -1365,8 +1412,8 @@
         btn.classList.remove('bg-sky-500', 'text-slate-950', 'font-bold');
         btn.classList.add('text-slate-300', 'bg-slate-800');
       }
-      if (roadMeshesGroup) {
-        roadMeshesGroup.traverse(child => {
+      if (corridor3DGroup) {
+        corridor3DGroup.traverse(child => {
           if (child.isMesh && child.material) {
             child.material.wireframe = is3DWireframe;
           }
@@ -1374,41 +1421,33 @@
       }
     }
 
-    /**
-     * Constructs a 3D transitioning prism mesh between Station A (Z = -L/2) and Station B (Z = +L/2)
-     * For arbitrary cross section shapes (Multi-layer polygons)
-     */
-    function createExtrudedPrismoid(ptsA, ptsB, lengthZ, materialOptions, explodeOffsetY = 0) {
+    function create3DPrismoidMesh(ptsA, ptsB, zA, zB, colorHex, explodeY = 0) {
       const count = ptsA.length;
-      const halfL = lengthZ / 2;
       const vertices = [];
       const indices = [];
 
-      // Add points for Station A (Front, Z = -halfL)
+      // Add points A
       for (let i = 0; i < count; i++) {
-        vertices.push(ptsA[i].x, ptsA[i].y + explodeOffsetY, -halfL);
+        vertices.push(ptsA[i].x, ptsA[i].y + explodeY, zA);
       }
-      // Add points for Station B (Back, Z = +halfL)
+      // Add points B
       for (let i = 0; i < count; i++) {
-        vertices.push(ptsB[i].x, ptsB[i].y + explodeOffsetY, halfL);
+        vertices.push(ptsB[i].x, ptsB[i].y + explodeY, zB);
       }
 
-      // Triangular faces between station A and B (quad strips)
+      // Side quads
       for (let i = 0; i < count; i++) {
         const next = (i + 1) % count;
-        const a1 = i;
-        const a2 = next;
-        const b1 = i + count;
-        const b2 = next + count;
-
+        const a1 = i, a2 = next;
+        const b1 = i + count, b2 = next + count;
         indices.push(a1, b1, a2);
         indices.push(a2, b1, b2);
       }
 
-      // End Caps (Fan triangulation for front and back faces)
+      // End caps
       for (let i = 1; i < count - 1; i++) {
-        indices.push(0, i + 1, i); // Sta A cap
-        indices.push(count, count + i, count + i + 1); // Sta B cap
+        indices.push(0, i + 1, i);
+        indices.push(count, count + i, count + i + 1);
       }
 
       const geom = new THREE.BufferGeometry();
@@ -1417,152 +1456,182 @@
       geom.computeVertexNormals();
 
       const mat = new THREE.MeshStandardMaterial({
-        color: materialOptions.color,
-        roughness: 0.7,
+        color: colorHex,
+        roughness: 0.65,
         metalness: 0.1,
         wireframe: is3DWireframe,
         side: THREE.DoubleSide
       });
 
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      return mesh;
+      return new THREE.Mesh(geom, mat);
     }
 
-    function update3DScene(calc) {
-      if (!roadMeshesGroup) return;
+    function update3DCorridor(calcData) {
+      if (!corridor3DGroup) return;
 
-      // Clear existing road meshes
-      while (roadMeshesGroup.children.length > 0) {
-        const obj = roadMeshesGroup.children[0];
+      while (corridor3DGroup.children.length > 0) {
+        const obj = corridor3DGroup.children[0];
         if (obj.geometry) obj.geometry.dispose();
         if (obj.material) obj.material.dispose();
-        roadMeshesGroup.remove(obj);
+        corridor3DGroup.remove(obj);
       }
 
-      const p = calc.p;
-      const halfW = p.width / 2.0;
+      const stList = calcData.stGeoms;
+      if (stList.length < 2) return;
 
-      // 1. Build Earth Embankment Base
-      const cumThick = calc.cumThickness;
-      const fillHA = Math.max(0.01, p.hA - cumThick);
-      const fillHB = Math.max(0.01, p.hB - cumThick);
+      const halfW = calcData.W / 2.0;
+      const minChainage = stList[0].chainage;
+      const maxChainage = stList[stList.length - 1].chainage;
+      const midChainage = (minChainage + maxChainage) / 2.0;
 
-      const baseHalfWA = halfW + p.s * p.hA;
-      const baseHalfWB = halfW + p.s * p.hB;
+      // Base datum for 3D elevation
+      const datumEl = Math.min(...stList.map(s => Math.min(s.egl, s.dfl)));
 
-      // Station A Fill Polygon Points (Relative to ground Y = 0)
-      const ptsA_Earth = [
-        { x: -baseHalfWA, y: 0 },
-        { x: -halfW, y: fillHA },
-        { x: halfW, y: fillHA },
-        { x: baseHalfWA, y: 0 }
-      ];
+      for (let i = 0; i < stList.length - 1; i++) {
+        const sA = stList[i];
+        const sB = stList[i + 1];
 
-      // Station B Fill Polygon Points
-      const ptsB_Earth = [
-        { x: -baseHalfWB, y: 0 },
-        { x: -halfW, y: fillHB },
-        { x: halfW, y: fillHB },
-        { x: baseHalfWB, y: 0 }
-      ];
+        const zA = -(sA.chainage - midChainage);
+        const zB = -(sB.chainage - midChainage);
 
-      const earthMesh = createExtrudedPrismoid(ptsA_Earth, ptsB_Earth, p.L, { color: 0x854d0e }, 0);
-      roadMeshesGroup.add(earthMesh);
+        // Ground/Base fill prism
+        const yEGL_A = sA.egl - datumEl;
+        const yEGL_B = sB.egl - datumEl;
+        const yDFL_A = sA.dfl - datumEl;
+        const yDFL_B = sB.dfl - datumEl;
 
-      // 2. Build Each Pavement Layer stacked on top
-      let currentCumA = fillHA;
-      let currentCumB = fillHB;
-      let explodeIndex = 1;
+        const isFillA = sA.isFill;
+        const isFillB = sB.isFill;
 
-      calc.layerCalcs.forEach(layer => {
-        const t = layer.thickness;
-        const explodeY = is3DExploded ? explodeIndex * 1.5 : 0;
+        // Station A Cross points
+        const baseHalfWA = sA.baseWidth / 2.0;
+        const baseHalfWB = sB.baseWidth / 2.0;
 
-        const ptsA_Layer = [
-          { x: -halfW, y: currentCumA },
-          { x: halfW, y: currentCumA },
-          { x: halfW, y: currentCumA + t },
-          { x: -halfW, y: currentCumA + t }
+        const ptsA = isFillA ? [
+          { x: -baseHalfWA, y: yEGL_A },
+          { x: -halfW, y: yDFL_A },
+          { x: halfW, y: yDFL_A },
+          { x: baseHalfWA, y: yEGL_A }
+        ] : [
+          { x: -baseHalfWA, y: yEGL_A },
+          { x: -halfW, y: yDFL_A - calcData.totalPaveThick },
+          { x: halfW, y: yDFL_A - calcData.totalPaveThick },
+          { x: baseHalfWA, y: yEGL_A }
         ];
 
-        const ptsB_Layer = [
-          { x: -halfW, y: currentCumB },
-          { x: halfW, y: currentCumB },
-          { x: halfW, y: currentCumB + t },
-          { x: -halfW, y: currentCumB + t }
+        const ptsB = isFillB ? [
+          { x: -baseHalfWB, y: yEGL_B },
+          { x: -halfW, y: yDFL_B },
+          { x: halfW, y: yDFL_B },
+          { x: baseHalfWB, y: yEGL_B }
+        ] : [
+          { x: -baseHalfWB, y: yEGL_B },
+          { x: -halfW, y: yDFL_B - calcData.totalPaveThick },
+          { x: halfW, y: yDFL_B - calcData.totalPaveThick },
+          { x: baseHalfWB, y: yEGL_B }
         ];
 
-        const mat = MATERIAL_TYPES[layer.type] || MATERIAL_TYPES.concrete;
-        const layerMesh = createExtrudedPrismoid(ptsA_Layer, ptsB_Layer, p.L, { color: mat.threeColor }, explodeY);
-        roadMeshesGroup.add(layerMesh);
+        const earthColor = (isFillA || isFillB) ? 0x0284c7 : 0xdc2626;
+        const earthMesh = create3DPrismoidMesh(ptsA, ptsB, zA, zB, earthColor, 0);
+        corridor3DGroup.add(earthMesh);
 
-        currentCumA += t;
-        currentCumB += t;
-        explodeIndex++;
-      });
+        // Pavement layers prism on top
+        let curTopA = isFillA ? yDFL_A : (yDFL_A - calcData.totalPaveThick);
+        let curTopB = isFillB ? yDFL_B : (yDFL_B - calcData.totalPaveThick);
+        let explodeIdx = 1;
+
+        calcData.activeLayers.forEach(l => {
+          const t = l.thickness;
+          const explodeY = is3DExploded ? explodeIdx * 1.5 : 0;
+          const mat = MATERIAL_TYPES[l.type] || MATERIAL_TYPES.concrete;
+
+          const layPtsA = [
+            { x: -halfW, y: curTopA },
+            { x: halfW, y: curTopA },
+            { x: halfW, y: curTopA + t },
+            { x: -halfW, y: curTopA + t }
+          ];
+
+          const layPtsB = [
+            { x: -halfW, y: curTopB },
+            { x: halfW, y: curTopB },
+            { x: halfW, y: curTopB + t },
+            { x: -halfW, y: curTopB + t }
+          ];
+
+          const layMesh = create3DPrismoidMesh(layPtsA, layPtsB, zA, zB, mat.threeColor, explodeY);
+          corridor3DGroup.add(layMesh);
+
+          curTopA += t;
+          curTopB += t;
+          explodeIdx++;
+        });
+      }
     }
 
     function switchVisualTab(tabKey) {
-      currentTab = tabKey;
-      const tab2d = document.getElementById('tab2dBtn');
-      const tab3d = document.getElementById('tab3dBtn');
-      const view2d = document.getElementById('viewContainer2D');
-      const view3d = document.getElementById('viewContainer3D');
+      activeVisualTab = tabKey;
+      const btn2d = document.getElementById('viewTab2dBtn');
+      const btnProf = document.getElementById('viewTabProfileBtn');
+      const btn3d = document.getElementById('viewTab3dBtn');
+
+      const vp2d = document.getElementById('viewport2D');
+      const vpProf = document.getElementById('viewportProfile');
+      const vp3d = document.getElementById('viewport3D');
+
       const ctrl2d = document.getElementById('controls2d');
       const ctrl3d = document.getElementById('controls3d');
 
+      [btn2d, btnProf, btn3d].forEach(b => {
+        b.classList.remove('bg-sky-600', 'text-white', 'shadow');
+        b.classList.add('text-slate-400');
+      });
+      [vp2d, vpProf, vp3d, ctrl2d, ctrl3d].forEach(v => v.classList.add('hidden'));
+
       if (tabKey === '2d') {
-        tab2d.classList.add('bg-sky-600', 'text-white', 'shadow');
-        tab2d.classList.remove('text-slate-400');
-        tab3d.classList.add('text-slate-400');
-        tab3d.classList.remove('bg-sky-600', 'text-white', 'shadow');
-
-        view2d.classList.remove('hidden');
-        view3d.classList.add('hidden');
+        btn2d.classList.add('bg-sky-600', 'text-white', 'shadow');
+        btn2d.classList.remove('text-slate-400');
+        vp2d.classList.remove('hidden');
         ctrl2d.classList.remove('hidden');
-        ctrl3d.classList.add('hidden');
-
-        // Re-render SVG to ensure dimensions are accurate
-        setTimeout(() => recalculateAll(), 50);
-      } else {
-        tab3d.classList.add('bg-sky-600', 'text-white', 'shadow');
-        tab3d.classList.remove('text-slate-400');
-        tab2d.classList.add('text-slate-400');
-        tab2d.classList.remove('bg-sky-600', 'text-white', 'shadow');
-
-        view2d.classList.add('hidden');
-        view3d.classList.remove('hidden');
-        ctrl2d.classList.add('hidden');
+        setTimeout(() => recalculateAll(), 30);
+      } else if (tabKey === 'profile') {
+        btnProf.classList.add('bg-sky-600', 'text-white', 'shadow');
+        btnProf.classList.remove('text-slate-400');
+        vpProf.classList.remove('hidden');
+        setTimeout(() => renderLongitudinalProfile(), 30);
+      } else if (tabKey === '3d') {
+        btn3d.classList.add('bg-sky-600', 'text-white', 'shadow');
+        btn3d.classList.remove('text-slate-400');
+        vp3d.classList.remove('hidden');
         ctrl3d.classList.remove('hidden');
-
-        // Init 3D if first time
         if (!renderer3D) {
           init3DScene();
         }
         setTimeout(() => {
-          onWindowResize3D();
+          onResize3D();
           recalculateAll();
-        }, 50);
+        }, 30);
       }
     }
 
-    // CSV BOQ Export Feature
+    // CSV Export of BOQ
     document.getElementById('exportCsvBtn').addEventListener('click', () => {
-      const calc = computeCalculations();
-      let csvContent = "\uFEFF"; // UTF-8 BOM for Thai Excel compatibility
-      csvContent += "รายการชั้นโครงสร้างทาง,ความหนา (ม.),พื้นที่ Sta A (ตร.ม.),พื้นที่ Sta B (ตร.ม.),ปริมาตรแน่น (ลบ.ม.),แฟกเตอร์ยุบตัว,ปริมาตรหลวม (ลบ.ม.),เที่ยวรถ 10 ล้อ\n";
+      const q = calculateAllQuantities();
+      let csv = "\uFEFF"; // UTF-8 BOM
+      csv += "ช่วงสถานี (Station Interval),ระยะห่าง L (ม.),พท.ดินตัดเฉลี่ย (ตร.ม.),ปริมาตรดินตัดแน่น (ลบ.ม.),พท.ดินถมเฉลี่ย (ตร.ม.),ปริมาตรดินถมแน่น (ลบ.ม.),ปริมาตรดินถมหลวม (ลบ.ม.),เที่ยวรถ 10 ล้อ\n";
 
-      calc.layerCalcs.forEach(r => {
-        csvContent += `"${r.name}",${r.thickness.toFixed(2)},${r.areaA.toFixed(2)},${r.areaB.toFixed(2)},${r.vCompacted.toFixed(2)},${r.shrinkage.toFixed(2)},${r.vLoose.toFixed(2)},${r.trucks}\n`;
+      q.intervals.forEach(r => {
+        csv += `"Sta. ${r.fromSta} -> ${r.toSta}",${r.length.toFixed(2)},${r.avgCutArea.toFixed(2)},${r.cutVol.toFixed(2)},${r.avgFillArea.toFixed(2)},${r.fillVol.toFixed(2)},${r.fillLoose.toFixed(2)},${r.trucks}\n`;
       });
 
-      const e = calc.earthFillRecord;
-      csvContent += `"${e.name}",-,${e.areaA.toFixed(2)},${e.areaB.toFixed(2)},${e.vCompacted.toFixed(2)},${e.shrinkage.toFixed(2)},${e.vLoose.toFixed(2)},${e.trucks}\n`;
-      csvContent += `"รวมปริมาตรทั้งหมด",-,-,-,${calc.totalCompact.toFixed(2)},-,${calc.totalLoose.toFixed(2)},${calc.totalTrucks}\n`;
+      csv += `"รวมทั้งสิ้น",${q.totalLength.toFixed(2)},-,${q.totalCutCompacted.toFixed(2)},-,${q.totalFillCompacted.toFixed(2)},${q.totalFillLoose.toFixed(2)},${q.totalTrucks}\n\n`;
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      csv += "รายการโครงสร้างชั้นทาง,ความหนา (ม.),แฟกเตอร์ยุบตัว,ปริมาตรแน่น (ลบ.ม.),ปริมาตรหลวม (ลบ.ม.),เที่ยวรถ 10 ล้อ\n";
+      q.pavementSummary.forEach(p => {
+        csv += `"${p.name}",${p.thickness.toFixed(2)},${p.shrinkage.toFixed(2)},${p.volCompacted.toFixed(2)},${p.volLoose.toFixed(2)},${p.trucks}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
@@ -1573,18 +1642,15 @@
     });
 
     window.addEventListener('load', () => {
-      // Bind inputs
-      const inputs = ['heightA', 'heightB', 'roadWidth', 'sideSlope', 'stationLength', 'crossSlope', 'embankmentShrinkage', 'truckCapacity', 'soilUnitPrice'];
-      inputs.forEach(id => {
+      ['globalWidth', 'globalFillSlope', 'globalCutSlope', 'shrinkageFill', 'swellCut', 'truckCapacity'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', recalculateAll);
       });
 
+      renderStationTable();
       renderLayersListUI();
-      setupSvgInteractions();
+      setupSvg2DInteractions();
       recalculateAll();
-
-      // Pre-initialize 3D context in hidden container to allow smooth instant tab switching
       init3DScene();
     });
   </script>
