@@ -1,1658 +1,1248 @@
 <!DOCTYPE html>
-<html lang="th" class="h-full bg-slate-950 text-slate-100">
+<html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบคำนวณปริมาตรงานดินตัด-ถมและโครงสร้างทางหลายชั้น (Highway Earthwork & Pavement Suite)</title>
-
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Three.js and OrbitControls -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Prompt', 'sans-serif'],
-            display: ['Chakra Petch', 'Prompt', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          },
-          colors: {
-            cut: {
-              400: '#f87171',
-              500: '#ef4444',
-              600: '#dc2626',
-              900: '#7f1d1d',
-              950: '#450a0a',
-            },
-            fill: {
-              400: '#38bdf8',
-              500: '#0ea5e9',
-              600: '#0284c7',
-              900: '#0c4a6e',
-              950: '#082f49',
-            }
-          }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบหาปริมาณความเสียหายโครงสร้างจากภาพถ่าย (Beta)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ExcelJS and FileSaver for Image-embedded Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
+        .canvas-container {
+            position: relative; width: 100%; height: 65vh; background-color: #e2e8f0;
+            border: 2px dashed #94a3b8; border-radius: 0.75rem; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
         }
-      }
-    }
-  </script>
+        canvas { 
+            max-width: 100%; max-height: 100%; object-fit: contain; 
+            touch-action: none; /* Crucial for touch dragging */
+        }
+        /* Dynamic cursor classes */
+        .cursor-crosshair { cursor: crosshair; }
+        .cursor-grab { cursor: grab; }
+        .cursor-grabbing { cursor: grabbing; }
 
-  <style>
-    body { font-family: 'Prompt', sans-serif; }
-    .heading-font { font-family: 'Chakra Petch', sans-serif; }
-    input[type=number]::-webkit-inner-spin-button, 
-    input[type=number]::-webkit-outer-spin-button { 
-      -webkit-appearance: none; 
-      margin: 0; 
-    }
-    input[type=number] { -moz-appearance: textfield; }
-    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #090d16; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #334155; }
-    .svg-canvas { cursor: grab; }
-    .svg-canvas:active { cursor: grabbing; }
+        .tool-btn.active { background-color: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); }
+        .tool-btn.active .tool-icon { stroke: #2563eb; }
 
-    @media print {
-      body { background-color: #ffffff !important; color: #000000 !important; }
-      .no-print { display: none !important; }
-      .print-border { border: 1px solid #cbd5e1 !important; }
-    }
-  </style>
+        /* Custom Scrollbar for tables */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Toast Notification */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 14px 20px; border-radius: 8px; color: white; font-weight: 500; font-size: 0.875rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0; transform: translateX(100%); animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards, fadeOut 0.3s 3.5s forwards; display: flex; align-items: center; gap: 8px; }
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+        .toast.info { background-color: #3b82f6; }
+        @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateX(100%); display: none; } }
+
+        /* Custom Modal */
+        #custom-modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 500; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        #custom-modal.active { display: flex; }
+    </style>
 </head>
-<body class="min-h-full flex flex-col bg-slate-950 text-slate-100 antialiased selection:bg-sky-500 selection:text-white">
+<body class="text-slate-800">
 
-  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 shadow-xl">
-    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-rose-500 p-0.5 shadow-lg shadow-sky-500/20 flex items-center justify-center">
-          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-            <svg class="w-5 h-5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="3 20 8 4 16 4 21 20 3 20"></polygon>
-              <line x1="5.5" y1="9" x2="18.5" y2="9"></line>
-              <line x1="4.5" y1="14" x2="19.5" y2="14"></line>
-            </svg>
-          </div>
+<div id="toast-container"></div>
+
+<!-- Data Entry Modal -->
+<div id="custom-modal">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
+        <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <i data-lucide="file-edit" class="w-5 h-5 text-blue-600"></i> บันทึกข้อมูล
+        </h3>
+        <div id="modal-body" class="space-y-4">
+            <!-- Dynamic inputs go here -->
         </div>
-        <div>
-          <h1 class="text-sm sm:text-base font-bold heading-font tracking-wide text-white flex items-center gap-2">
-            Highway Earthwork &amp; Multi-Layer Pavement Suite
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-sky-950 text-sky-300 border border-sky-800 font-normal">DOH / DHR Standards</span>
-          </h1>
-          <p class="text-[11px] text-slate-400 hidden sm:block">คำนวณดินตัด-ดินถม (Cut &amp; Fill) หลาย Station และโครงสร้างชั้นทางแยกรายชั้น พร้อมรูปตัด 2D, โปรไฟล์, และโมเดล 3D ต่อเนื่อง</p>
+        <div class="mt-8 flex justify-end gap-3">
+            <button onclick="closeModal(false)" class="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200 transition">ยกเลิก (ลบเส้น)</button>
+            <button onclick="closeModal(true)" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md shadow-blue-500/30 transition">บันทึกข้อมูล</button>
         </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="flex items-center space-x-2 no-print">
-        <button onclick="window.print()" class="inline-flex items-center px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-medium transition gap-1.5 shadow-sm">
-          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-          <span class="hidden md:inline">พิมพ์รายงาน</span>
-        </button>
-        <button id="exportCsvBtn" class="inline-flex items-center px-3 py-1.5 rounded-lg border border-sky-800 bg-sky-950 hover:bg-sky-900 text-xs text-sky-300 font-medium transition gap-1.5 shadow-sm">
-          <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          <span class="hidden md:inline">ส่งออก BOQ ตาม Sta. (CSV)</span>
-        </button>
-      </div>
     </div>
-  </header>
+</div>
 
-  <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full no-print">
-    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-      <div class="flex items-center gap-2">
-        <span class="p-1 rounded-lg bg-indigo-950 text-indigo-400 border border-indigo-800/60">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-        </span>
-        <span class="text-xs font-semibold text-slate-200">โหลดชุดข้อมูลโครงการตัวอย่าง (Sample Project Presets):</span>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <button type="button" onclick="loadSampleProject('cut_fill_mountain')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-amber-400"></span> 1. แนวทางผ่านเนินเขา (มีทั้งดินตัดและดินถมผสมกัน)
-        </button>
-        <button type="button" onclick="loadSampleProject('high_embankment')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-sky-400"></span> 2. งานยกระดับคันทางสูง (High Fill Embankment)
-        </button>
-        <button type="button" onclick="loadSampleProject('deep_cut')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-rose-400"></span> 3. ทางตัดเปิดร่องเขา (Deep Cut Box)
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <main class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4 w-full flex-grow flex flex-col gap-5">
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
-
-      <!-- LEFT COLUMN: Station Table & Layer Settings (5 cols on xl) -->
-      <div class="xl:col-span-5 flex flex-col gap-5">
-
-        <!-- 1. Station Alignment Data Table -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl relative">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-            <div class="flex items-center gap-2">
-              <span class="w-7 h-7 rounded-lg bg-sky-950 text-sky-400 border border-sky-800 flex items-center justify-center text-xs font-bold font-mono">1</span>
-              <div>
-                <h2 class="text-sm font-bold text-white heading-font">ข้อมูลแนวสถานี (Station &amp; Elevation Alignment)</h2>
-                <p class="text-[11px] text-slate-400">กรอก Sta, ค่าระดับดินเดิม (EGL), ค่าระดับออกแบบ (DFL)</p>
-              </div>
+<div class="max-w-[1600px] mx-auto p-4 md:p-6 space-y-6">
+    
+    <!-- Top Bar: Project Metadata -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
+        <div class="md:col-span-4 lg:col-span-3">
+            <h1 class="text-lg lg:text-xl font-bold text-slate-800 flex items-center gap-2 flex-wrap leading-tight">
+                ระบบหาปริมาณความเสียหายโครงสร้างจากภาพถ่าย
+                <span class="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-sm">Beta</span>
+            </h1>
+            <p class="text-xs text-slate-500 mt-1.5 flex items-center gap-1"><i data-lucide="cpu" class="w-3 h-3"></i> Pure-JS Homography Engine</p>
+        </div>
+        <div class="md:col-span-3 lg:col-span-3">
+            <label class="block text-xs font-bold text-slate-600 mb-1">ชื่ออาคาร / โครงการ</label>
+            <div class="relative">
+                <i data-lucide="building" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="meta-bldg" class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="ระบุอาคาร">
             </div>
-            <button type="button" onclick="addNewStation()" class="text-xs px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition flex items-center gap-1 shadow">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              เพิ่ม Station
+        </div>
+        <div class="md:col-span-2 lg:col-span-3">
+            <label class="block text-xs font-bold text-slate-600 mb-1">ชั้น (Floor)</label>
+            <div class="relative">
+                <i data-lucide="layers" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="meta-floor" class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="ระบุชั้น">
+            </div>
+        </div>
+        <div class="md:col-span-3 lg:col-span-3">
+            <label class="block text-xs font-bold text-slate-600 mb-1">ตำแหน่ง (Location)</label>
+            <div class="relative">
+                <i data-lucide="map-pin" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="meta-loc" class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="เช่น เสา C4">
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN WORKSPACE -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        
+        <!-- Left Sidebar: Tools & Calibration -->
+        <div class="xl:col-span-3 flex flex-col gap-5">
+            
+            <!-- Setup & Image Upload & Project Save/Load -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs">1</span> 
+                        ข้อมูลภาพ (Image / Project)
+                    </h2>
+                </div>
+                <div class="space-y-3">
+                    <div class="relative">
+                        <label class="block text-xs font-bold text-slate-600 mb-1">เริ่มรูปภาพใหม่ (New Image)</label>
+                        <input type="file" id="imageUpload" accept="image/*" class="w-full text-sm text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-200 rounded-lg cursor-pointer transition"/>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                        <button onclick="saveProject()" class="flex items-center justify-center gap-2 py-2 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-900 transition shadow-sm">
+                            <i data-lucide="save" class="w-3.5 h-3.5"></i> Save
+                        </button>
+                        <button onclick="document.getElementById('projectUpload').click()" class="flex items-center justify-center gap-2 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 transition shadow-sm">
+                            <i data-lucide="folder-open" class="w-3.5 h-3.5"></i> Load
+                        </button>
+                        <input type="file" id="projectUpload" accept=".json" class="hidden" onchange="loadProject(event)" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calibration System -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs">2</span> 
+                        การกำหนดขนาดอ้างอิง
+                    </h2>
+                </div>
+                
+                <div class="flex gap-2 mb-4 bg-slate-100 p-1.5 rounded-lg">
+                    <button class="flex-1 py-1.5 text-xs font-bold rounded-md transition bg-white shadow-sm text-indigo-700" id="tab-planar" onclick="setRefMode('planar')">ระนาบตรง (2 จุด)</button>
+                    <button class="flex-1 py-1.5 text-xs font-bold rounded-md transition text-slate-500 hover:text-slate-700" id="tab-persp" onclick="setRefMode('perspective')">มุมเอียง (4 จุด)</button>
+                </div>
+
+                <div id="cfg-planar" class="space-y-3">
+                    <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <label class="text-xs font-bold text-slate-600 w-16">ความยาว:</label>
+                        <input type="number" id="ref-len" value="10" class="flex-1 px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:border-indigo-500">
+                        <span class="text-xs font-bold text-slate-500">cm</span>
+                    </div>
+                    <button id="btn-cal-planar" class="w-full flex justify-center items-center gap-2 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition" onclick="startCalibration()">
+                        <i data-lucide="crosshair" class="w-4 h-4"></i> เริ่มกำหนดจุดอ้างอิง
+                    </button>
+                </div>
+
+                <div id="cfg-persp" class="space-y-3 hidden">
+                    <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <div class="flex items-center gap-1">
+                            <label class="text-xs font-bold text-slate-600">กว้าง:</label>
+                            <input type="number" id="ref-w" value="10" class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <label class="text-xs font-bold text-slate-600">ยาว:</label>
+                            <input type="number" id="ref-h" value="20" class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                    <button id="btn-cal-persp" class="w-full flex justify-center items-center gap-2 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition" onclick="startCalibration()">
+                        <i data-lucide="scan" class="w-4 h-4"></i> เริ่มกำหนดจุดมุม (4 จุด)
+                    </button>
+                </div>
+                
+                <div id="cal-status" class="mt-4 text-center text-xs font-bold text-slate-500 bg-slate-50 p-2 rounded-lg flex items-center justify-center gap-2 border border-slate-200">
+                    <i data-lucide="alert-circle" class="w-4 h-4"></i> รอการกำหนดขนาด
+                </div>
+            </div>
+
+            <!-- Measurement Tools -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-grow">
+                <h2 class="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2">
+                    <span class="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs">3</span> 
+                    เครื่องมือวัดผล (Tools)
+                </h2>
+                
+                <div class="flex flex-col gap-2">
+                    <button id="tool-crack" class="tool-btn flex items-center gap-3 px-4 py-3 text-sm font-bold border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition text-left" onclick="selectTool('crack')">
+                        <i data-lucide="activity" class="w-5 h-5 tool-icon text-red-500"></i> วัดรอยร้าว (Crack)
+                    </button>
+                    <button id="tool-area" class="tool-btn flex items-center gap-3 px-4 py-3 text-sm font-bold border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition text-left" onclick="selectTool('area')">
+                        <i data-lucide="hexagon" class="w-5 h-5 tool-icon text-yellow-500"></i> พื้นที่เสื่อมสภาพ (Area)
+                    </button>
+                    <button id="tool-rebar" class="tool-btn flex items-center gap-3 px-4 py-3 text-sm font-bold border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition text-left" onclick="selectTool('rebar')">
+                        <i data-lucide="git-commit" class="w-5 h-5 tool-icon text-green-500"></i> เหล็กเสริม (Rebar)
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Center: Canvas Area -->
+        <div class="xl:col-span-9 relative flex flex-col min-h-[50vh]">
+            <div class="flex flex-wrap justify-between items-center mb-3 gap-3">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2"><i data-lucide="monitor" class="w-4 h-4"></i> หน้าต่างปฏิบัติงาน</h2>
+                    <span id="active-tool-badge" class="px-3 py-1 text-xs font-bold bg-slate-100 text-slate-500 rounded-full border border-slate-200 shadow-sm flex items-center gap-1">
+                        โหมด: รอการตั้งค่า
+                    </span>
+                    <span id="drag-hint" class="hidden px-2 py-0.5 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded animate-pulse">
+                        💡 สามารถคลิกค้างแล้วลากจุดเพื่อปรับแต่งได้
+                    </span>
+                </div>
+                <div id="drawing-controls" class="hidden flex gap-2">
+                    <button onclick="finishDrawing()" class="flex items-center gap-1 px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg shadow-sm shadow-emerald-500/30 transition">
+                        <i data-lucide="check" class="w-3 h-3"></i> บันทึกเส้นนี้
+                    </button>
+                    <button onclick="cancelDrawing()" class="flex items-center gap-1 px-4 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-lg shadow-sm transition">
+                        <i data-lucide="x" class="w-3 h-3"></i> ยกเลิก
+                    </button>
+                </div>
+            </div>
+            
+            <div class="canvas-container" id="canvas-wrapper">
+                <div id="canvas-placeholder" class="flex flex-col items-center gap-3 text-slate-400">
+                    <i data-lucide="image-plus" class="w-12 h-12 opacity-50"></i>
+                    <span class="font-bold text-sm">กรุณาอัพโหลดรูปภาพเพื่อเริ่มต้น</span>
+                </div>
+                <canvas id="main-canvas" class="hidden cursor-crosshair"></canvas>
+            </div>
+            <p class="text-xs text-slate-500 mt-3 font-medium bg-white px-3 py-2 rounded-lg border border-slate-100 shadow-sm inline-flex items-center gap-2">
+                <i data-lucide="info" class="w-4 h-4 text-blue-500"></i>
+                <span id="instruction-text">อัพโหลดรูปภาพ -> ตั้งค่าอ้างอิง -> เลือกเครื่องมือเพื่อเริ่มวัดรอยร้าว</span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Dashboard / Tables -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mt-8">
+        <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <i data-lucide="bar-chart-2" class="w-6 h-6 text-blue-600"></i> สรุปผลการประเมินโครงสร้าง
+            </h2>
+            <button onclick="exportExcel()" class="px-5 py-2.5 bg-slate-800 text-white text-sm font-bold rounded-lg shadow-md hover:bg-slate-900 hover:shadow-lg transition flex items-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> Export to Excel
             </button>
-          </div>
-
-          <!-- Global Geometry Controls for Slopes & Width -->
-          <div class="grid grid-cols-3 gap-2.5 bg-slate-950/70 p-3 rounded-xl border border-slate-800 mb-3 text-xs">
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">ความกว้างทาง $W$ (ม.)</label>
-              <input type="number" id="globalWidth" value="9.00" step="0.5" min="2.0" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:ring-1 focus:ring-sky-500 outline-none">
-            </div>
-            <div>
-              <label class="block text-[11px] text-sky-400 mb-1">ลาดคันถม $1:s_{fill}$</label>
-              <div class="relative">
-                <span class="absolute left-2 top-1.5 text-slate-500 font-mono text-xs">1:</span>
-                <input type="number" id="globalFillSlope" value="1.50" step="0.25" min="0.5" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-6 pr-2 py-1.5 text-white font-mono text-xs focus:ring-1 focus:ring-sky-500 outline-none">
-              </div>
-            </div>
-            <div>
-              <label class="block text-[11px] text-rose-400 mb-1">ลาดคันตัด $1:s_{cut}$</label>
-              <div class="relative">
-                <span class="absolute left-2 top-1.5 text-slate-500 font-mono text-xs">1:</span>
-                <input type="number" id="globalCutSlope" value="1.00" step="0.25" min="0.25" class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-6 pr-2 py-1.5 text-white font-mono text-xs focus:ring-1 focus:ring-rose-500 outline-none">
-              </div>
-            </div>
-          </div>
-
-          <!-- Station Rows Table -->
-          <div class="overflow-x-auto custom-scrollbar max-h-[300px] border border-slate-800/80 rounded-xl bg-slate-950/40">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-950 text-[11px] text-slate-400 font-mono uppercase sticky top-0 border-b border-slate-800 z-10">
-                <tr>
-                  <th class="py-2 px-2.5">สถานี (Sta.)</th>
-                  <th class="py-2 px-2 text-right">ระยะ (ม.)</th>
-                  <th class="py-2 px-2 text-right">ดินเดิม EGL (ม.)</th>
-                  <th class="py-2 px-2 text-right">ระดับทาง DFL (ม.)</th>
-                  <th class="py-2 px-2 text-center">สภาวะ</th>
-                  <th class="py-2 px-2 text-center w-8">ลบ</th>
-                </tr>
-              </thead>
-              <tbody id="stationTableBody" class="divide-y divide-slate-800/60 font-mono">
-                <!-- Dynamically injected stations -->
-              </tbody>
-            </table>
-          </div>
-          <p class="text-[10px] text-slate-500 mt-2">* คลิกที่แถว Station เพื่อสลับให้แสดงรูปตัด 2D Cross Section ของจุดนั้น</p>
         </div>
 
-        <!-- 2. Multi-Layer Pavement Structure Manager -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-            <div class="flex items-center gap-2">
-              <span class="w-7 h-7 rounded-lg bg-amber-950 text-amber-400 border border-amber-800 flex items-center justify-center text-xs font-bold font-mono">2</span>
-              <div>
-                <h2 class="text-sm font-bold text-white heading-font">โครงสร้างชั้นทาง (Multi-Layer Pavement)</h2>
-                <p class="text-[11px] text-slate-400">ผิวทาง คสล., ทรายหยาบ, หินคลุก, ลูกรัง</p>
-              </div>
-            </div>
-            <button type="button" onclick="addNewPavementLayer()" class="text-xs px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition flex items-center gap-1 shadow">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              เพิ่มชั้นวัสดุ
-            </button>
-          </div>
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            
+            <!-- Left: Summaries -->
+            <div class="xl:col-span-4 space-y-6">
+                <!-- Summary 1: Crack Width Groups -->
+                <div class="bg-slate-50 p-1 rounded-xl border border-slate-200">
+                    <div class="bg-white rounded-lg p-4">
+                        <h3 class="font-bold text-sm text-slate-800 mb-3 flex items-center gap-2"><i data-lucide="bar-chart" class="w-4 h-4 text-blue-500"></i> สรุปความยาวแยกตามความกว้าง</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="border-b-2 border-slate-100 text-slate-500 text-xs uppercase">
+                                    <tr>
+                                        <th class="px-2 py-2 font-bold">ความกว้าง</th>
+                                        <th class="px-2 py-2 text-right font-bold">ความยาวรวม (cm)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tb-summary-crack" class="divide-y divide-slate-50">
+                                    <tr><td colspan="2" class="px-2 py-4 text-center text-slate-400 text-xs">ไม่มีข้อมูล</td></tr>
+                                </tbody>
+                                <tfoot class="border-t-2 border-slate-100 font-bold">
+                                    <tr>
+                                        <td class="px-2 py-3 text-right text-xs text-slate-600">รวมทั้งหมด:</td>
+                                        <td class="px-2 py-3 text-right text-red-600 text-base" id="total-crack-len">0.00</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
-          <!-- Dynamic Layer List -->
-          <div id="layersContainer" class="space-y-2.5 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
-            <!-- Dynamically populated -->
-          </div>
+                <!-- Summary 2: Area & Rebar Totals -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-100 shadow-sm">
+                        <p class="text-xs text-amber-800 font-bold mb-1 flex items-center gap-1"><i data-lucide="hexagon" class="w-3 h-3"></i> รวมพื้นที่เสื่อมสภาพ</p>
+                        <p class="text-2xl font-black text-amber-600" id="total-area">0.00</p>
+                        <p class="text-xs text-amber-700/70 mt-1 font-semibold">ตร.ซม.</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-100 shadow-sm">
+                        <p class="text-xs text-green-800 font-bold mb-1 flex items-center gap-1"><i data-lucide="git-commit" class="w-3 h-3"></i> รวมเหล็กเสริม</p>
+                        <p class="text-2xl font-black text-green-600" id="total-rebar">0.00</p>
+                        <p class="text-xs text-green-700/70 mt-1 font-semibold">เซนติเมตร</p>
+                    </div>
+                </div>
+            </div>
 
-          <!-- Material Shrinkage and Truck Setup -->
-          <div class="mt-3 pt-3 border-t border-slate-800/80 grid grid-cols-3 gap-2.5 text-xs">
-            <div>
-              <label class="block text-[10px] text-slate-400">ยุบตัวดินถม (Fill Factor)</label>
-              <input type="number" id="shrinkageFill" value="1.25" step="0.05" min="1.0" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-sky-400 font-mono text-xs">
+            <!-- Right: Raw Data Tables -->
+            <div class="xl:col-span-8 space-y-5 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                
+                <!-- Cracks Table -->
+                <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div class="bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 flex justify-between items-center border-b border-slate-200">
+                        <span class="flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-red-500"></i> รายการรอยร้าว (Cracks)</span>
+                    </div>
+                    <table class="w-full text-xs text-left bg-white">
+                        <thead class="bg-white border-b border-slate-100 text-slate-500 uppercase">
+                            <tr>
+                                <th class="px-4 py-3 font-bold">ID</th>
+                                <th class="px-4 py-3 font-bold">กว้าง(mm)</th>
+                                <th class="px-4 py-3 font-bold">ลึก(mm)</th>
+                                <th class="px-4 py-3 font-bold text-right">ยาว(cm)</th>
+                                <th class="px-4 py-3 font-bold text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tb-raw-crack" class="divide-y divide-slate-50">
+                            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Area Table -->
+                <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div class="bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 flex justify-between items-center border-b border-slate-200">
+                        <span class="flex items-center gap-2"><i data-lucide="hexagon" class="w-4 h-4 text-yellow-500"></i> พื้นที่เสื่อมสภาพ (Damaged Areas)</span>
+                    </div>
+                    <table class="w-full text-xs text-left bg-white">
+                        <thead class="bg-white border-b border-slate-100 text-slate-500 uppercase">
+                            <tr>
+                                <th class="px-4 py-3 font-bold w-16">ID</th>
+                                <th class="px-4 py-3 font-bold">รายละเอียด / สาเหตุ</th>
+                                <th class="px-4 py-3 font-bold text-right">พื้นที่(ตร.ซม.)</th>
+                                <th class="px-4 py-3 font-bold text-center w-20">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tb-raw-area" class="divide-y divide-slate-50">
+                            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Rebar Table -->
+                <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    <div class="bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 flex justify-between items-center border-b border-slate-200">
+                        <span class="flex items-center gap-2"><i data-lucide="git-commit" class="w-4 h-4 text-green-500"></i> เหล็กเสริมที่เสื่อมสภาพ (Rebars)</span>
+                    </div>
+                    <table class="w-full text-xs text-left bg-white">
+                        <thead class="bg-white border-b border-slate-100 text-slate-500 uppercase">
+                            <tr>
+                                <th class="px-4 py-3 font-bold w-16">ID</th>
+                                <th class="px-4 py-3 font-bold">รายละเอียด</th>
+                                <th class="px-4 py-3 font-bold text-right">ยาว(cm)</th>
+                                <th class="px-4 py-3 font-bold text-center w-20">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tb-raw-rebar" class="divide-y divide-slate-50">
+                            <tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
             </div>
-            <div>
-              <label class="block text-[10px] text-slate-400">พองตัวดินขุด (Swell Cut)</label>
-              <input type="number" id="swellCut" value="1.20" step="0.05" min="1.0" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-rose-400 font-mono text-xs">
-            </div>
-            <div>
-              <label class="block text-[10px] text-slate-400">จุรถ 10 ล้อ (ลบ.ม./เที่ยว)</label>
-              <input type="number" id="truckCapacity" value="10.0" step="0.5" class="w-full mt-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-amber-300 font-mono text-xs">
-            </div>
-          </div>
         </div>
-
-      </div>
-
-      <div class="xl:col-span-7 flex flex-col gap-5">
-
-        <!-- Visualizer Card: 2D Section / Longitudinal Profile / 3D Scene -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col">
-          <!-- View Navigation Tabs -->
-          <div class="bg-slate-950 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center space-x-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
-              <button id="viewTab2dBtn" onclick="switchVisualTab('2d')" class="px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium transition shadow flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 12h16"/></svg>
-                รูปตัดขวาง 2D (<span id="activeSectionBadge">Sta. 0+000</span>)
-              </button>
-              <button id="viewTabProfileBtn" onclick="switchVisualTab('profile')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white font-medium transition flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
-                รูปแนวตั้ง Profile (EGL vs DFL)
-              </button>
-              <button id="viewTab3dBtn" onclick="switchVisualTab('3d')" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white font-medium transition flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"/></svg>
-                แบบจำลอง 3D ตลอดสายทาง
-              </button>
-            </div>
-
-            <!-- 2D Canvas Controls -->
-            <div id="controls2d" class="flex items-center gap-1.5">
-              <button onclick="zoom2D(1.2)" title="ซูมเข้า" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-              </button>
-              <button onclick="zoom2D(0.8)" title="ซูมออก" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6"/></svg>
-              </button>
-              <button onclick="reset2DView()" title="รีเซ็ตมุมมอง" class="px-2 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
-                Reset
-              </button>
-            </div>
-
-            <!-- 3D Controls -->
-            <div id="controls3d" class="hidden flex items-center gap-1.5">
-              <button id="explode3dBtn" onclick="toggleExplode3D()" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 transition">
-                ระเบิดชั้น (Explode)
-              </button>
-              <button id="wireframe3dBtn" onclick="toggleWireframe3D()" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
-                โครงลวด (Wireframe)
-              </button>
-              <button onclick="reset3DCamera()" class="px-2 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
-                Reset Cam
-              </button>
-            </div>
-          </div>
-
-          <!-- 1. 2D Cross-Section SVG Viewport -->
-          <div id="viewport2D" class="relative w-full h-[420px] bg-slate-950 overflow-hidden select-none">
-            <div class="absolute top-2 left-3 z-10 text-[10px] text-slate-400 bg-slate-900/80 backdrop-blur px-2.5 py-1 rounded-md border border-slate-800 pointer-events-none">
-              🔍 เลื่อนเมาส์เพื่อ Zoom / คลิกค้างลากเพื่อ Pan หน้าตัด
-            </div>
-
-            <svg id="crossSectionSvg" class="w-full h-full svg-canvas" preserveAspectRatio="xMidYMid meet">
-              <defs>
-                <!-- Material Hatches -->
-                <pattern id="patConcrete" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                  <line x1="0" y1="0" x2="0" y2="10" stroke="#94a3b8" stroke-width="1.5"/>
-                  <circle cx="5" cy="5" r="1.2" fill="#cbd5e1"/>
-                </pattern>
-                <pattern id="patSand" width="8" height="8" patternUnits="userSpaceOnUse">
-                  <circle cx="2" cy="2" r="0.8" fill="#fbbf24"/>
-                  <circle cx="6" cy="6" r="0.8" fill="#f59e0b"/>
-                </pattern>
-                <pattern id="patCrushedRock" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
-                  <polygon points="2,2 6,1 4,6" fill="#64748b"/>
-                  <polygon points="8,8 11,9 10,12" fill="#94a3b8"/>
-                </pattern>
-                <pattern id="patLaterite" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
-                  <line x1="0" y1="0" x2="10" y2="0" stroke="#ea580c" stroke-width="1.8"/>
-                  <line x1="0" y1="5" x2="10" y2="5" stroke="#f97316" stroke-width="0.8" stroke-dasharray="2 2"/>
-                </pattern>
-                <pattern id="patFill" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                  <line x1="0" y1="0" x2="14" y2="0" stroke="#0ea5e9" stroke-width="1.5"/>
-                  <line x1="0" y1="7" x2="14" y2="7" stroke="#38bdf8" stroke-width="0.8" stroke-dasharray="2 2"/>
-                </pattern>
-                <pattern id="patCut" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
-                  <line x1="0" y1="0" x2="14" y2="0" stroke="#ef4444" stroke-width="1.5"/>
-                  <line x1="0" y1="7" x2="14" y2="7" stroke="#f87171" stroke-width="0.8" stroke-dasharray="2 2"/>
-                </pattern>
-                <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8"/>
-                </marker>
-                <marker id="arrowRose" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#f87171"/>
-                </marker>
-              </defs>
-              <g id="svgViewport">
-                <!-- Injected via render2DCrossSection() -->
-              </g>
-            </svg>
-
-            <!-- Legend Overlay -->
-            <div id="sectionLegend" class="absolute bottom-2 left-2 right-2 flex flex-wrap items-center justify-center gap-2 pointer-events-none text-[11px] bg-slate-900/90 py-1 px-3 rounded-xl border border-slate-800">
-              <!-- Dynamically populated -->
-            </div>
-          </div>
-
-          <!-- 2. Longitudinal Profile Viewport -->
-          <div id="viewportProfile" class="relative w-full h-[420px] bg-slate-950 hidden overflow-hidden p-3">
-            <svg id="profileSvg" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
-              <g id="profileViewport">
-                <!-- Longitudinal profile chart -->
-              </g>
-            </svg>
-          </div>
-
-          <!-- 3. 3D WebGL Three.js Viewport -->
-          <div id="viewport3D" class="relative w-full h-[420px] bg-slate-950 hidden overflow-hidden">
-            <div id="webglContainer" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
-            <div class="absolute top-2 left-3 text-[10px] text-slate-400 bg-slate-900/80 backdrop-blur px-2.5 py-1 rounded-md border border-slate-800 pointer-events-none">
-              🖱️ คลิกซ้ายหมุนรอบทิศ 360° | คลิกขวาแพน | สกอร์เมาส์ซูม
-            </div>
-          </div>
-
-        </div>
-
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
-          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-            <div>
-              <h3 class="text-sm sm:text-base font-bold text-white heading-font flex items-center gap-2">
-                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                สรุปปริมาณงานดินตัด-ดินถม และชั้นทางรายช่วง (Earthwork &amp; Pavement BOQ)
-              </h3>
-              <p class="text-[11px] text-slate-400">คำนวณตามวิธี Average End Area Method ($V = \frac{A_1 + A_2}{2} \times L$)</p>
-            </div>
-          </div>
-
-          <!-- Summary Metric Cards -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-            <div class="p-2.5 bg-rose-950/20 border border-rose-900/50 rounded-xl">
-              <span class="text-[10px] text-rose-400 block uppercase font-mono">ปริมาตรดินขุดแน่น (Total Cut)</span>
-              <div class="flex items-baseline gap-1 mt-0.5">
-                <span id="metricTotalCutCompacted" class="text-lg font-bold text-rose-300 font-mono">0.00</span>
-                <span class="text-[10px] text-slate-400">ลบ.ม.</span>
-              </div>
-            </div>
-
-            <div class="p-2.5 bg-sky-950/20 border border-sky-900/50 rounded-xl">
-              <span class="text-[10px] text-sky-400 block uppercase font-mono">ปริมาตรดินถมแน่น (Total Fill)</span>
-              <div class="flex items-baseline gap-1 mt-0.5">
-                <span id="metricTotalFillCompacted" class="text-lg font-bold text-sky-300 font-mono">0.00</span>
-                <span class="text-[10px] text-slate-400">ลบ.ม.</span>
-              </div>
-            </div>
-
-            <div class="p-2.5 bg-amber-950/20 border border-amber-900/50 rounded-xl">
-              <span class="text-[10px] text-amber-400 block uppercase font-mono">ดินถมหลวมจัดซื้อ (Loose Fill)</span>
-              <div class="flex items-baseline gap-1 mt-0.5">
-                <span id="metricTotalFillLoose" class="text-lg font-bold text-amber-300 font-mono">0.00</span>
-                <span class="text-[10px] text-slate-400">ลบ.ม.</span>
-              </div>
-            </div>
-
-            <div class="p-2.5 bg-slate-950/60 border border-slate-800 rounded-xl">
-              <span class="text-[10px] text-emerald-400 block uppercase font-mono">ประเมินเที่ยวรถ 10 ล้อ</span>
-              <div class="flex items-baseline gap-1 mt-0.5">
-                <span id="metricTotalTrucks" class="text-lg font-bold text-emerald-300 font-mono">0</span>
-                <span class="text-[10px] text-slate-400">เที่ยว</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- BOQ Station by Station Table -->
-          <div class="overflow-x-auto custom-scrollbar border border-slate-800 rounded-xl">
-            <table class="w-full text-left text-xs text-slate-300">
-              <thead class="bg-slate-950 text-[11px] text-slate-400 border-b border-slate-800 uppercase font-mono">
-                <tr>
-                  <th class="py-2.5 px-3">ช่วงสถานี (Station Interval)</th>
-                  <th class="py-2.5 px-2 text-right">ระยะ L (ม.)</th>
-                  <th class="py-2.5 px-2 text-right text-rose-400">พท.ตัดเฉลี่ย (ตร.ม.)</th>
-                  <th class="py-2.5 px-2 text-right text-rose-400">ดินตัดแน่น (ลบ.ม.)</th>
-                  <th class="py-2.5 px-2 text-right text-sky-400">พท.ถมเฉลี่ย (ตร.ม.)</th>
-                  <th class="py-2.5 px-2 text-right text-sky-400">ดินถมแน่น (ลบ.ม.)</th>
-                  <th class="py-2.5 px-2 text-right text-amber-300 font-bold">ดินถมหลวม (ลบ.ม.)</th>
-                  <th class="py-2.5 px-3 text-right">รถ 10 ล้อ (เที่ยว)</th>
-                </tr>
-              </thead>
-              <tbody id="earthworkTableBody" class="divide-y divide-slate-800/60 bg-slate-900/40 font-mono">
-                <!-- Injected via JavaScript -->
-              </tbody>
-              <tfoot class="bg-slate-950 font-semibold text-slate-200 border-t border-slate-700 text-xs">
-                <tr>
-                  <td class="py-2.5 px-3 font-bold" colspan="3">รวมทั้งสิ้น (Total Volumes)</td>
-                  <td id="tfootCutTotal" class="py-2.5 px-2 text-right font-mono text-rose-400 font-bold">-</td>
-                  <td class="py-2.5 px-2 text-right font-mono text-slate-400">-</td>
-                  <td id="tfootFillTotal" class="py-2.5 px-2 text-right font-mono text-sky-400 font-bold">-</td>
-                  <td id="tfootFillLooseTotal" class="py-2.5 px-2 text-right font-mono text-amber-300 font-bold">-</td>
-                  <td id="tfootTrucksTotal" class="py-2.5 px-3 text-right font-mono text-emerald-300 font-bold">-</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <!-- Pavement Layers Volume Breakdown -->
-          <div class="mt-2">
-            <h4 class="text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-              ปริมาตรวัสดุโครงสร้างชั้นทางรวมตลอดสายทาง (Pavement Structure Quantities)
-            </h4>
-            <div id="pavementSummaryBadges" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <!-- Dynamically populated -->
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
     </div>
-  </main>
 
-  <script>
-    // -------------------------------------------------------------------------
-    // DATA STRUCTURE & STATE
-    // -------------------------------------------------------------------------
-    const MATERIAL_TYPES = {
-      concrete: {
-        name: 'ผิวทางคอนกรีต (คสล.)',
-        color: '#94a3b8',
-        threeColor: 0x94a3b8,
-        hatch: 'url(#patConcrete)',
-        defaultShrinkage: 1.05
-      },
-      sand: {
-        name: 'ทรายหยาบรองใต้แผ่น',
-        color: '#f59e0b',
-        threeColor: 0xd97706,
-        hatch: 'url(#patSand)',
-        defaultShrinkage: 1.20
-      },
-      crushedRock: {
-        name: 'หินคลุกพื้นทาง (Crushed Rock)',
-        color: '#64748b',
-        threeColor: 0x64748b,
-        hatch: 'url(#patCrushedRock)',
-        defaultShrinkage: 1.25
-      },
-      laterite: {
-        name: 'ลูกรังรองพื้นทาง (Laterite Subbase)',
-        color: '#ea580c',
-        threeColor: 0xc2410c,
-        hatch: 'url(#patLaterite)',
-        defaultShrinkage: 1.30
-      }
+    <!-- Footer / Footnote -->
+    <div class="mt-12 pt-6 pb-2 border-t border-slate-200 flex justify-center">
+        <p class="text-sm font-medium text-slate-500 bg-slate-100 px-4 py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-4 h-4 text-slate-400"></i>
+            สำหรับใช้ภายใน กองวิศวกรรมบำรุงรักษาโยธา ฝ่ายบำรุงรักษาโยธา
+        </p>
+    </div>
+</div>
+
+<script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    function showToast(msg, type='info') {
+        const c = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        
+        let icon = 'info';
+        if(type==='success') icon = 'check-circle';
+        if(type==='error') icon = 'alert-octagon';
+        
+        t.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i><span>${msg}</span>`;
+        c.appendChild(t);
+        lucide.createIcons({root: t});
+        
+        setTimeout(() => { if(c.contains(t)) t.remove(); }, 4000);
+    }
+
+    // --- State Management ---
+    const State = {
+        image: null,
+        refMode: 'planar', // 'planar' | 'perspective'
+        calibrated: false,
+        calibType: null, // What successfully calibrated
+        pxPerCm: 1, 
+        H_Matrix: null, 
+        
+        mode: 'idle', // 'idle', 'calibrating', 'drawing'
+        tool: null, // 'crack', 'area', 'rebar'
+        
+        refPoints: [], 
+        currentPath: [], 
+        
+        // Drag & Drop specific
+        hoveredPointIndex: -1,
+        draggingPointIndex: -1,
+        
+        records: { crack: [], area: [], rebar: [] }
     };
 
-    // Stations Array
-    let stations = [
-      { id: 'st_0', name: '0+000', chainage: 0, egl: 100.00, dfl: 102.50 },
-      { id: 'st_1', name: '0+025', chainage: 25, egl: 101.20, dfl: 102.60 },
-      { id: 'st_2', name: '0+050', chainage: 50, egl: 103.80, dfl: 102.70 },
-      { id: 'st_3', name: '0+075', chainage: 75, egl: 104.50, dfl: 102.80 },
-      { id: 'st_4', name: '0+100', chainage: 100, egl: 101.50, dfl: 102.90 }
-    ];
-
-    // Layers Array
-    let pavementLayers = [
-      { id: 'lay_1', type: 'concrete', name: 'ผิวทาง คสล. 20 ซม.', thickness: 0.20, shrinkage: 1.05, enabled: true },
-      { id: 'lay_2', type: 'sand', name: 'ทรายหยาบ 5 ซม.', thickness: 0.05, shrinkage: 1.20, enabled: true },
-      { id: 'lay_3', type: 'crushedRock', name: 'หินคลุกพื้นทาง 15 ซม.', thickness: 0.15, shrinkage: 1.25, enabled: true },
-      { id: 'lay_4', type: 'laterite', name: 'ลูกรังรองพื้นทาง 20 ซม.', thickness: 0.20, shrinkage: 1.30, enabled: true }
-    ];
-
-    let selectedStationIndex = 0;
-    let activeVisualTab = '2d';
-
-    // 2D Canvas Transform
-    let svg2dState = {
-      zoom: 1,
-      panX: 0,
-      panY: 0,
-      isPanning: false,
-      startX: 0,
-      startY: 0
-    };
-
-    // 3D Scene globals
-    let scene3D, camera3D, renderer3D, controls3D;
-    let corridor3DGroup;
-    let is3DExploded = false;
-    let is3DWireframe = false;
-
-    function loadSampleProject(key) {
-      if (key === 'cut_fill_mountain') {
-        document.getElementById('globalWidth').value = '9.00';
-        document.getElementById('globalFillSlope').value = '1.50';
-        document.getElementById('globalCutSlope').value = '1.00';
-        stations = [
-          { id: 'st_0', name: '0+000', chainage: 0, egl: 100.00, dfl: 102.50 },
-          { id: 'st_1', name: '0+025', chainage: 25, egl: 101.80, dfl: 102.65 },
-          { id: 'st_2', name: '0+050', chainage: 50, egl: 104.50, dfl: 102.80 },
-          { id: 'st_3', name: '0+075', chainage: 75, egl: 105.20, dfl: 102.95 },
-          { id: 'st_4', name: '0+100', chainage: 100, egl: 101.20, dfl: 103.10 }
-        ];
-      } else if (key === 'high_embankment') {
-        document.getElementById('globalWidth').value = '10.00';
-        document.getElementById('globalFillSlope').value = '1.75';
-        document.getElementById('globalCutSlope').value = '1.00';
-        stations = [
-          { id: 'st_0', name: '0+000', chainage: 0, egl: 50.00, dfl: 53.00 },
-          { id: 'st_1', name: '0+030', chainage: 30, egl: 50.20, dfl: 53.50 },
-          { id: 'st_2', name: '0+060', chainage: 60, egl: 50.50, dfl: 54.00 },
-          { id: 'st_3', name: '0+090', chainage: 90, egl: 50.80, dfl: 53.50 },
-          { id: 'st_4', name: '0+120', chainage: 120, egl: 51.00, dfl: 53.00 }
-        ];
-      } else if (key === 'deep_cut') {
-        document.getElementById('globalWidth').value = '8.00';
-        document.getElementById('globalFillSlope').value = '1.50';
-        document.getElementById('globalCutSlope').value = '0.75';
-        stations = [
-          { id: 'st_0', name: '0+000', chainage: 0, egl: 120.00, dfl: 118.00 },
-          { id: 'st_1', name: '0+025', chainage: 25, egl: 122.50, dfl: 118.20 },
-          { id: 'st_2', name: '0+050', chainage: 50, egl: 124.00, dfl: 118.40 },
-          { id: 'st_3', name: '0+075', chainage: 75, egl: 121.80, dfl: 118.60 }
-        ];
-      }
-      selectedStationIndex = 0;
-      renderStationTable();
-      recalculateAll();
-    }
-
-    function addNewStation() {
-      const count = stations.length;
-      const last = stations[count - 1] || { chainage: 0, egl: 100, dfl: 102 };
-      const nextChainage = last.chainage + 25;
-      const km = Math.floor(nextChainage / 1000);
-      const m = nextChainage % 1000;
-      const name = `${km}+${m.toString().padStart(3, '0')}`;
-
-      stations.push({
-        id: 'st_' + Date.now(),
-        name: name,
-        chainage: nextChainage,
-        egl: last.egl,
-        dfl: last.dfl
-      });
-      renderStationTable();
-      recalculateAll();
-    }
-
-    function removeStation(index, event) {
-      if (event) event.stopPropagation();
-      if (stations.length <= 2) {
-        alert('จำเป็นต้องมีสถานีอย่างน้อย 2 สถานีเพื่อคำนวณช่วงทาง');
-        return;
-      }
-      stations.splice(index, 1);
-      if (selectedStationIndex >= stations.length) {
-        selectedStationIndex = stations.length - 1;
-      }
-      renderStationTable();
-      recalculateAll();
-    }
-
-    function updateStationField(index, field, value) {
-      stations[index][field] = value;
-      if (field === 'chainage') {
-        stations.sort((a, b) => a.chainage - b.chainage);
-      }
-      recalculateAll();
-    }
-
-    function selectStation(index) {
-      selectedStationIndex = index;
-      renderStationTable();
-      render2DCrossSection();
-    }
-
-    function renderStationTable() {
-      const tbody = document.getElementById('stationTableBody');
-      tbody.innerHTML = stations.map((st, i) => {
-        const isSelected = i === selectedStationIndex;
-        const diff = st.dfl - st.egl;
-        const isCut = diff < -0.01;
-        const isFill = diff > 0.01;
-        const statusBadge = isCut 
-          ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-rose-950 text-rose-300 border border-rose-800">Cut (${Math.abs(diff).toFixed(2)}m)</span>`
-          : isFill
-          ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-sky-950 text-sky-300 border border-sky-800">Fill (${diff.toFixed(2)}m)</span>`
-          : `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300">Grade</span>`;
-
-        return `
-          <tr class="cursor-pointer transition ${isSelected ? 'bg-sky-950/40 border-l-4 border-sky-500 text-white font-semibold' : 'hover:bg-slate-800/40'}" onclick="selectStation(${i})">
-            <td class="py-2 px-2.5">
-              <input type="text" value="${st.name}" onclick="event.stopPropagation()" onchange="updateStationField(${i}, 'name', this.value)" class="bg-transparent text-xs w-16 border-b border-transparent hover:border-slate-600 focus:border-sky-500 outline-none">
-            </td>
-            <td class="py-2 px-2 text-right">
-              <input type="number" value="${st.chainage}" onclick="event.stopPropagation()" onchange="updateStationField(${i}, 'chainage', parseFloat(this.value)||0)" class="bg-transparent text-xs w-14 text-right border-b border-transparent hover:border-slate-600 focus:border-sky-500 outline-none">
-            </td>
-            <td class="py-2 px-2 text-right">
-              <input type="number" value="${st.egl.toFixed(2)}" step="0.1" onclick="event.stopPropagation()" onchange="updateStationField(${i}, 'egl', parseFloat(this.value)||0)" class="bg-transparent text-xs w-14 text-right border-b border-transparent hover:border-slate-600 focus:border-sky-500 outline-none text-amber-300">
-            </td>
-            <td class="py-2 px-2 text-right">
-              <input type="number" value="${st.dfl.toFixed(2)}" step="0.1" onclick="event.stopPropagation()" onchange="updateStationField(${i}, 'dfl', parseFloat(this.value)||0)" class="bg-transparent text-xs w-14 text-right border-b border-transparent hover:border-slate-600 focus:border-sky-500 outline-none text-sky-300">
-            </td>
-            <td class="py-2 px-2 text-center">${statusBadge}</td>
-            <td class="py-2 px-2 text-center">
-              <button type="button" onclick="removeStation(${i}, event)" class="text-slate-500 hover:text-rose-400 p-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-
-      const activeSt = stations[selectedStationIndex] || stations[0];
-      if (activeSt) {
-        document.getElementById('activeSectionBadge').textContent = `Sta. ${activeSt.name}`;
-      }
-    }
-
-    function renderLayersListUI() {
-      const container = document.getElementById('layersContainer');
-      container.innerHTML = pavementLayers.map((layer, index) => {
-        const mat = MATERIAL_TYPES[layer.type] || MATERIAL_TYPES.concrete;
-        return `
-          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 transition">
-            <div class="flex items-center justify-between gap-2 mb-1.5">
-              <div class="flex items-center gap-1.5">
-                <span class="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold font-mono bg-slate-800 text-slate-300">
-                  ${index + 1}
-                </span>
-                <input type="text" value="${layer.name}" onchange="updatePavementField('${layer.id}', 'name', this.value)" class="bg-transparent text-xs font-semibold text-white outline-none w-44">
-              </div>
-              <div class="flex items-center gap-1">
-                <button type="button" onclick="togglePavementLayer('${layer.id}')" class="text-[10px] px-1.5 py-0.5 rounded ${layer.enabled ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-900 text-slate-500 border border-slate-800'}">
-                  ${layer.enabled ? 'เปิด' : 'ปิด'}
-                </button>
-                <button type="button" onclick="removePavementLayer('${layer.id}')" class="p-1 text-slate-500 hover:text-rose-400">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-              </div>
-            </div>
-            <div class="grid grid-cols-3 gap-2 text-xs">
-              <div>
-                <span class="text-[9px] text-slate-400 block">วัสดุ</span>
-                <select onchange="updatePavementType('${layer.id}', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-[11px] text-white outline-none">
-                  ${Object.keys(MATERIAL_TYPES).map(k => `
-                    <option value="${k}" ${layer.type === k ? 'selected' : ''}>${MATERIAL_TYPES[k].name}</option>
-                  `).join('')}
-                </select>
-              </div>
-              <div>
-                <span class="text-[9px] text-slate-400 block">หนา (ม.)</span>
-                <input type="number" value="${layer.thickness}" step="0.01" min="0.01" onchange="updatePavementField('${layer.id}', 'thickness', parseFloat(this.value)||0.05)" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-[11px] text-white font-mono outline-none">
-              </div>
-              <div>
-                <span class="text-[9px] text-slate-400 block">ยุบตัว</span>
-                <input type="number" value="${layer.shrinkage}" step="0.05" min="1.0" onchange="updatePavementField('${layer.id}', 'shrinkage', parseFloat(this.value)||1.0)" class="w-full bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-[11px] text-amber-300 font-mono outline-none">
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function addNewPavementLayer() {
-      const id = 'lay_' + Date.now();
-      pavementLayers.push({
-        id: id,
-        type: 'crushedRock',
-        name: 'ชั้นเสริมหินคลุก/ลูกรัง ' + (pavementLayers.length + 1),
-        thickness: 0.15,
-        shrinkage: 1.25,
-        enabled: true
-      });
-      renderLayersListUI();
-      recalculateAll();
-    }
-
-    function removePavementLayer(id) {
-      pavementLayers = pavementLayers.filter(l => l.id !== id);
-      renderLayersListUI();
-      recalculateAll();
-    }
-
-    function togglePavementLayer(id) {
-      const l = pavementLayers.find(x => x.id === id);
-      if (l) {
-        l.enabled = !l.enabled;
-        renderLayersListUI();
-        recalculateAll();
-      }
-    }
-
-    function updatePavementField(id, field, value) {
-      const l = pavementLayers.find(x => x.id === id);
-      if (l) {
-        l[field] = value;
-        recalculateAll();
-      }
-    }
-
-    function updatePavementType(id, type) {
-      const l = pavementLayers.find(x => x.id === id);
-      if (l && MATERIAL_TYPES[type]) {
-        l.type = type;
-        l.shrinkage = MATERIAL_TYPES[type].defaultShrinkage;
-        renderLayersListUI();
-        recalculateAll();
-      }
-    }
-
-    /**
-     * Calculates single cross section geometric properties:
-     * - In Fill condition (DFL >= EGL):
-     *     Height h = DFL - EGL
-     *     Total trapezoid area = (W + s_fill * h) * h
-     *     Pavement layers occupy top width W
-     *     Base earth fill area = Total - Sum(pavement layers)
-     * - In Cut condition (DFL < EGL):
-     *     Depth d = EGL - DFL
-     *     Road formation is excavated below EGL by (d + totalPavementThickness)
-     *     Side cut slopes rise at 1:s_cut from bottom of road formation up to EGL
-     *     Box Cut area = (W + s_cut * (d + t_pave)) * (d + t_pave)
-     */
-    function computeStationGeometry(st, W, sFill, sCut, activeLayers, totalPaveThick) {
-      const diff = st.dfl - st.egl;
-      const isFill = diff >= 0;
-      const absDiff = Math.abs(diff);
-
-      let fillArea = 0;
-      let cutArea = 0;
-      let baseWidth = W;
-
-      if (isFill) {
-        const h = absDiff;
-        const totalTrapezoid = (W + (sFill * h)) * h;
-        // Pavement layer deduction from embankment fill
-        const paveAreaSum = activeLayers.reduce((sum, l) => sum + (W * l.thickness), 0);
-        fillArea = Math.max(0, totalTrapezoid - paveAreaSum);
-        cutArea = 0;
-        baseWidth = W + 2 * sFill * h;
-      } else {
-        // Cut condition: The roadbed must be cut below ground to accommodate pavement
-        const totalCutDepth = absDiff + totalPaveThick;
-        cutArea = (W + (sCut * totalCutDepth)) * totalCutDepth;
-        fillArea = 0;
-        baseWidth = W + 2 * sCut * totalCutDepth;
-      }
-
-      return {
-        ...st,
-        diff,
-        isFill,
-        fillArea,
-        cutArea,
-        baseWidth,
-        totalPaveThick
-      };
-    }
-
-    function calculateAllQuantities() {
-      const W = Math.max(2.0, parseFloat(document.getElementById('globalWidth').value) || 9.0);
-      const sFill = Math.max(0.2, parseFloat(document.getElementById('globalFillSlope').value) || 1.5);
-      const sCut = Math.max(0.2, parseFloat(document.getElementById('globalCutSlope').value) || 1.0);
-      const shrinkFill = Math.max(1.0, parseFloat(document.getElementById('shrinkageFill').value) || 1.25);
-      const swellCut = Math.max(1.0, parseFloat(document.getElementById('swellCut').value) || 1.20);
-      const truckCap = Math.max(1.0, parseFloat(document.getElementById('truckCapacity').value) || 10.0);
-
-      const activeLayers = pavementLayers.filter(l => l.enabled);
-      const totalPaveThick = activeLayers.reduce((s, l) => s + l.thickness, 0);
-
-      // Station geometries
-      const stGeoms = stations.map(st => computeStationGeometry(st, W, sFill, sCut, activeLayers, totalPaveThick));
-
-      // Intervals (Average End Area)
-      const intervals = [];
-      let totalCutCompacted = 0;
-      let totalFillCompacted = 0;
-
-      for (let i = 0; i < stGeoms.length - 1; i++) {
-        const st1 = stGeoms[i];
-        const st2 = stGeoms[i + 1];
-        const length = Math.max(0, st2.chainage - st1.chainage);
-
-        const avgCutArea = (st1.cutArea + st2.cutArea) / 2.0;
-        const avgFillArea = (st1.fillArea + st2.fillArea) / 2.0;
-
-        const cutVol = avgCutArea * length;
-        const fillVol = avgFillArea * length;
-        const fillLoose = fillVol * shrinkFill;
-        const trucks = Math.ceil(fillLoose / truckCap);
-
-        totalCutCompacted += cutVol;
-        totalFillCompacted += fillVol;
-
-        intervals.push({
-          fromSta: st1.name,
-          toSta: st2.name,
-          length,
-          avgCutArea,
-          cutVol,
-          avgFillArea,
-          fillVol,
-          fillLoose,
-          trucks
-        });
-      }
-
-      // Total Corridor Pavement Quantities
-      const totalLength = stGeoms.length > 1 ? (stGeoms[stGeoms.length - 1].chainage - stGeoms[0].chainage) : 0;
-      const pavementSummary = activeLayers.map(layer => {
-        const volCompacted = W * layer.thickness * totalLength;
-        const volLoose = volCompacted * layer.shrinkage;
-        return {
-          ...layer,
-          volCompacted,
-          volLoose,
-          trucks: Math.ceil(volLoose / truckCap)
-        };
-      });
-
-      const totalFillLoose = totalFillCompacted * shrinkFill;
-      const totalTrucks = Math.ceil(totalFillLoose / truckCap);
-
-      return {
-        W,
-        sFill,
-        sCut,
-        shrinkFill,
-        swellCut,
-        truckCap,
-        activeLayers,
-        totalPaveThick,
-        stGeoms,
-        intervals,
-        totalCutCompacted,
-        totalFillCompacted,
-        totalFillLoose,
-        totalTrucks,
-        totalLength,
-        pavementSummary
-      };
-    }
-
-    function recalculateAll() {
-      const q = calculateAllQuantities();
-
-      // Update Top Metrics
-      document.getElementById('metricTotalCutCompacted').textContent = q.totalCutCompacted.toFixed(2);
-      document.getElementById('metricTotalFillCompacted').textContent = q.totalFillCompacted.toFixed(2);
-      document.getElementById('metricTotalFillLoose').textContent = q.totalFillLoose.toFixed(2);
-      document.getElementById('metricTotalTrucks').textContent = q.totalTrucks.toLocaleString();
-
-      // Populate BOQ Table
-      const tbody = document.getElementById('earthworkTableBody');
-      tbody.innerHTML = q.intervals.map(row => {
-        return `
-          <tr class="hover:bg-slate-800/40 transition">
-            <td class="py-2 px-3 font-semibold text-white">Sta. ${row.fromSta} &rarr; ${row.toSta}</td>
-            <td class="py-2 px-2 text-right">${row.length.toFixed(1)}</td>
-            <td class="py-2 px-2 text-right text-rose-300 font-mono">${row.avgCutArea.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right text-rose-400 font-mono font-bold">${row.cutVol.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right text-sky-300 font-mono">${row.avgFillArea.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right text-sky-400 font-mono font-bold">${row.fillVol.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right text-amber-300 font-mono font-bold">${row.fillLoose.toFixed(2)}</td>
-            <td class="py-2 px-3 text-right text-emerald-300 font-mono font-semibold">${row.trucks.toLocaleString()}</td>
-          </tr>
-        `;
-      }).join('');
-
-      document.getElementById('tfootCutTotal').textContent = q.totalCutCompacted.toFixed(2) + ' m³';
-      document.getElementById('tfootFillTotal').textContent = q.totalFillCompacted.toFixed(2) + ' m³';
-      document.getElementById('tfootFillLooseTotal').textContent = q.totalFillLoose.toFixed(2) + ' m³';
-      document.getElementById('tfootTrucksTotal').textContent = q.totalTrucks.toLocaleString() + ' เที่ยว';
-
-      // Pavement Badges
-      const pBadges = document.getElementById('pavementSummaryBadges');
-      pBadges.innerHTML = q.pavementSummary.map(p => {
-        return `
-          <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-            <span class="text-[10px] text-slate-400 block truncate">${p.name}</span>
-            <div class="flex items-baseline gap-1 mt-0.5">
-              <span class="text-sm font-bold text-amber-400 font-mono">${p.volCompacted.toFixed(1)}</span>
-              <span class="text-[10px] text-slate-500">m³ (แน่น)</span>
-            </div>
-            <span class="text-[10px] text-slate-400 mt-1 block">&asymp; ${p.volLoose.toFixed(1)} m³ (${p.trucks} รถ)</span>
-          </div>
-        `;
-      }).join('');
-
-      // Refresh Graphics
-      render2DCrossSection(q);
-      renderLongitudinalProfile(q);
-      update3DCorridor(q);
-    }
-
-    function render2DCrossSection(calcData) {
-      if (!calcData) calcData = calculateAllQuantities();
-      const st = calcData.stGeoms[selectedStationIndex] || calcData.stGeoms[0];
-      if (!st) return;
-
-      const svgGroup = document.getElementById('svgViewport');
-      const svg = document.getElementById('crossSectionSvg');
-      const rect = svg.getBoundingClientRect();
-      const viewW = rect.width || 700;
-      const viewH = rect.height || 420;
-
-      svgGroup.innerHTML = '';
-
-      const cx = viewW / 2;
-      const cy = viewH * 0.55;
-      const W = calcData.W;
-      const diff = st.dfl - st.egl;
-      const isFill = diff >= 0;
-      const absDiff = Math.abs(diff);
-
-      // Adaptive Scale
-      const maxSpan = Math.max(st.baseWidth, W, 14);
-      const maxHeight = Math.max(absDiff + calcData.totalPaveThick, 3.5);
-      const scale = Math.min((viewW * 0.65) / maxSpan, (viewH * 0.55) / maxHeight);
-
-      const halfW = (W / 2.0) * scale;
-      const paveThickPx = calcData.totalPaveThick * scale;
-      const eglY = cy;
-
-      // 1. Natural Ground Line (EGL)
-      const eglSpan = Math.max(halfW * 2.8, (st.baseWidth / 2) * scale + 60);
-      const groundLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      groundLine.setAttribute('x1', cx - eglSpan);
-      groundLine.setAttribute('y1', eglY);
-      groundLine.setAttribute('x2', cx + eglSpan);
-      groundLine.setAttribute('y2', eglY);
-      groundLine.setAttribute('stroke', '#64748b');
-      groundLine.setAttribute('stroke-width', '2');
-      groundLine.setAttribute('stroke-dasharray', '8 4');
-      svgGroup.appendChild(groundLine);
-
-      // EGL Label
-      const eglText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      eglText.setAttribute('x', cx - eglSpan + 10);
-      eglText.setAttribute('y', eglY - 8);
-      eglText.setAttribute('fill', '#94a3b8');
-      eglText.setAttribute('font-size', '10');
-      eglText.setAttribute('font-family', 'JetBrains Mono');
-      eglText.textContent = `ระดับดินเดิม EGL = ${st.egl.toFixed(2)} m.`;
-      svgGroup.appendChild(eglText);
-
-      // Title & Elevation Tag
-      const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      title.setAttribute('x', cx);
-      title.setAttribute('y', 35);
-      title.setAttribute('text-anchor', 'middle');
-      title.setAttribute('fill', '#f8fafc');
-      title.setAttribute('font-size', '14');
-      title.setAttribute('font-weight', 'bold');
-      title.setAttribute('font-family', 'Chakra Petch');
-      title.textContent = `รูปตัดขวาง STA. ${st.name} [${isFill ? 'งานคันทางดินถม (FILL)' : 'งานดินขุดตัด (CUT)'}]`;
-      svgGroup.appendChild(title);
-
-      const subtitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      subtitle.setAttribute('x', cx);
-      subtitle.setAttribute('y', 55);
-      subtitle.setAttribute('text-anchor', 'middle');
-      subtitle.setAttribute('fill', isFill ? '#38bdf8' : '#f87171');
-      subtitle.setAttribute('font-size', '11');
-      subtitle.setAttribute('font-family', 'JetBrains Mono');
-      subtitle.textContent = isFill
-        ? `ความสูงคันถม h = ${diff.toFixed(2)} m. | พท.ถมสุทธิ = ${st.fillArea.toFixed(2)} ตร.ม.`
-        : `ความลึกดินตัด d = ${absDiff.toFixed(2)} m. | พท.ดินขุดตัด = ${st.cutArea.toFixed(2)} ตร.ม.`;
-      svgGroup.appendChild(subtitle);
-
-      if (isFill) {
-        // ----------------- FILL EMBANKMENT SCENARIO -----------------
-        const topY = eglY - (diff * scale);
-        const baseHalfW = halfW + (calcData.sFill * diff) * scale;
-
-        // Fill Trapezoid
-        const fillPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        fillPoly.setAttribute('points', `
-          ${cx - baseHalfW},${eglY} 
-          ${cx - halfW},${topY} 
-          ${cx + halfW},${topY} 
-          ${cx + baseHalfW},${eglY}
-        `);
-        fillPoly.setAttribute('fill', 'url(#patFill)');
-        fillPoly.setAttribute('stroke', '#0ea5e9');
-        fillPoly.setAttribute('stroke-width', '1.5');
-        fillPoly.setAttribute('opacity', '0.85');
-        svgGroup.appendChild(fillPoly);
-
-        // Draw Pavement Layers stacked from topY downwards
-        let curY = topY;
-        calcData.activeLayers.forEach(l => {
-          const lh = l.thickness * scale;
-          const layPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-          layPoly.setAttribute('points', `
-            ${cx - halfW},${curY} 
-            ${cx + halfW},${curY} 
-            ${cx + halfW},${curY + lh} 
-            ${cx - halfW},${curY + lh}
-          `);
-          const mat = MATERIAL_TYPES[l.type] || MATERIAL_TYPES.concrete;
-          layPoly.setAttribute('fill', mat.hatch);
-          layPoly.setAttribute('stroke', mat.color);
-          layPoly.setAttribute('stroke-width', '1');
-          svgGroup.appendChild(layPoly);
-          curY += lh;
-        });
-
-        // Dimensions: Road Width W
-        drawDimLine(svgGroup, cx - halfW, topY - 16, cx + halfW, topY - 16, `W = ${W.toFixed(2)} m.`, '#38bdf8');
-        // Dimensions: Height h
-        drawDimLine(svgGroup, cx + baseHalfW + 15, eglY, cx + baseHalfW + 15, topY, `h = ${diff.toFixed(2)} m.`, '#38bdf8', true);
-        // Base Width B
-        drawDimLine(svgGroup, cx - baseHalfW, eglY + 25, cx + baseHalfW, eglY + 25, `B = ${st.baseWidth.toFixed(2)} m.`, '#94a3b8');
-
-      } else {
-        // ----------------- CUT EXCAVATION SCENARIO -----------------
-        const roadbedY = eglY + (absDiff * scale) + paveThickPx;
-        const formationY = eglY + (absDiff * scale);
-        const cutDepthTotal = absDiff + calcData.totalPaveThick;
-        const topCutHalfW = halfW + (calcData.sCut * cutDepthTotal) * scale;
-
-        // Cut Trench Polygon
-        const cutPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        cutPoly.setAttribute('points', `
-          ${cx - topCutHalfW},${eglY} 
-          ${cx - halfW},${roadbedY} 
-          ${cx + halfW},${roadbedY} 
-          ${cx + topCutHalfW},${eglY}
-        `);
-        cutPoly.setAttribute('fill', 'url(#patCut)');
-        cutPoly.setAttribute('stroke', '#ef4444');
-        cutPoly.setAttribute('stroke-width', '1.5');
-        cutPoly.setAttribute('opacity', '0.85');
-        svgGroup.appendChild(cutPoly);
-
-        // Pavement Layers in Box Cut (between formationY and roadbedY)
-        let curY = formationY;
-        calcData.activeLayers.forEach(l => {
-          const lh = l.thickness * scale;
-          const layPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-          layPoly.setAttribute('points', `
-            ${cx - halfW},${curY} 
-            ${cx + halfW},${curY} 
-            ${cx + halfW},${curY + lh} 
-            ${cx - halfW},${curY + lh}
-          `);
-          const mat = MATERIAL_TYPES[l.type] || MATERIAL_TYPES.concrete;
-          layPoly.setAttribute('fill', mat.hatch);
-          layPoly.setAttribute('stroke', mat.color);
-          layPoly.setAttribute('stroke-width', '1');
-          svgGroup.appendChild(layPoly);
-          curY += lh;
-        });
-
-        // Dimensions: Roadbed W
-        drawDimLine(svgGroup, cx - halfW, roadbedY + 20, cx + halfW, roadbedY + 20, `W = ${W.toFixed(2)} m.`, '#f87171');
-        // Dimensions: Cut Depth d
-        drawDimLine(svgGroup, cx + topCutHalfW + 15, eglY, cx + topCutHalfW + 15, roadbedY, `d = ${cutDepthTotal.toFixed(2)} m.`, '#f87171', true);
-      }
-
-      // Update Section Legend
-      updateSectionLegendBadge(calcData.activeLayers, isFill);
-      applySvgTransform();
-    }
-
-    function drawDimLine(svg, x1, y1, x2, y2, text, color, isVertical = false) {
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', x1);
-      line.setAttribute('y1', y1);
-      line.setAttribute('x2', x2);
-      line.setAttribute('y2', y2);
-      line.setAttribute('stroke', color);
-      line.setAttribute('stroke-width', '1.2');
-      line.setAttribute('marker-start', 'url(#arrow)');
-      line.setAttribute('marker-end', 'url(#arrow)');
-      svg.appendChild(line);
-
-      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      if (isVertical) {
-        t.setAttribute('x', x1 + 6);
-        t.setAttribute('y', (y1 + y2) / 2 + 4);
-      } else {
-        t.setAttribute('x', (x1 + x2) / 2);
-        t.setAttribute('y', y1 - 6);
-        t.setAttribute('text-anchor', 'middle');
-      }
-      t.setAttribute('fill', color);
-      t.setAttribute('font-size', '10');
-      t.setAttribute('font-family', 'JetBrains Mono');
-      t.setAttribute('font-weight', 'bold');
-      t.textContent = text;
-      svg.appendChild(t);
-    }
-
-    function updateSectionLegendBadge(activeLayers, isFill) {
-      const container = document.getElementById('sectionLegend');
-      const items = activeLayers.map(l => {
-        const mat = MATERIAL_TYPES[l.type] || MATERIAL_TYPES.concrete;
-        return `
-          <div class="flex items-center gap-1">
-            <span class="w-2.5 h-2.5 rounded-sm" style="background-color: ${mat.color}"></span>
-            <span class="text-slate-300 text-[10px]">${l.name}</span>
-          </div>
-        `;
-      });
-      items.push(`
-        <div class="flex items-center gap-1">
-          <span class="w-2.5 h-2.5 rounded-sm ${isFill ? 'bg-sky-500' : 'bg-rose-500'}"></span>
-          <span class="text-[10px] ${isFill ? 'text-sky-300' : 'text-rose-300'} font-bold">${isFill ? 'ดินถมคันทาง (Fill)' : 'ดินขุดตัด (Cut)'}</span>
-        </div>
-      `);
-      container.innerHTML = items.join('');
-    }
-
-    // 2D Pan & Zoom Handlers
-    function setupSvg2DInteractions() {
-      const svg = document.getElementById('crossSectionSvg');
-      svg.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.15 : 0.85;
-        zoom2D(factor);
-      }, { passive: false });
-
-      svg.addEventListener('mousedown', (e) => {
-        svg2dState.isPanning = true;
-        svg2dState.startX = e.clientX - svg2dState.panX;
-        svg2dState.startY = e.clientY - svg2dState.panY;
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (!svg2dState.isPanning) return;
-        svg2dState.panX = e.clientX - svg2dState.startX;
-        svg2dState.panY = e.clientY - svg2dState.startY;
-        applySvgTransform();
-      });
-
-      window.addEventListener('mouseup', () => {
-        svg2dState.isPanning = false;
-      });
-    }
-
-    function zoom2D(factor) {
-      svg2dState.zoom = Math.min(Math.max(0.4, svg2dState.zoom * factor), 4.5);
-      applySvgTransform();
-    }
-
-    function reset2DView() {
-      svg2dState.zoom = 1;
-      svg2dState.panX = 0;
-      svg2dState.panY = 0;
-      applySvgTransform();
-    }
-
-    function applySvgTransform() {
-      const g = document.getElementById('svgViewport');
-      if (g) {
-        g.setAttribute('transform', `translate(${svg2dState.panX}, ${svg2dState.panY}) scale(${svg2dState.zoom})`);
-      }
-    }
-
-    function renderLongitudinalProfile(calcData) {
-      if (!calcData) calcData = calculateAllQuantities();
-      const svg = document.getElementById('profileSvg');
-      const g = document.getElementById('profileViewport');
-      const rect = svg.getBoundingClientRect();
-      const W = rect.width || 700;
-      const H = rect.height || 420;
-
-      g.innerHTML = '';
-      const stList = calcData.stGeoms;
-      if (stList.length < 2) return;
-
-      const padL = 60, padR = 40, padT = 50, padB = 60;
-      const chartW = W - padL - padR;
-      const chartH = H - padT - padB;
-
-      // Range
-      const minCh = stList[0].chainage;
-      const maxCh = stList[stList.length - 1].chainage;
-      const allElevs = stList.flatMap(s => [s.egl, s.dfl]);
-      let minEl = Math.min(...allElevs) - 1.0;
-      let maxEl = Math.max(...allElevs) + 1.0;
-
-      const toX = (ch) => padL + ((ch - minCh) / (maxCh - minCh || 1)) * chartW;
-      const toY = (el) => padT + chartH - ((el - minEl) / (maxEl - minEl || 1)) * chartH;
-
-      // Grid lines
-      for (let i = 0; i <= 5; i++) {
-        const elVal = minEl + (i / 5) * (maxEl - minEl);
-        const yPos = toY(elVal);
-        const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        gridLine.setAttribute('x1', padL);
-        gridLine.setAttribute('y1', yPos);
-        gridLine.setAttribute('x2', W - padR);
-        gridLine.setAttribute('y2', yPos);
-        gridLine.setAttribute('stroke', '#1e293b');
-        gridLine.setAttribute('stroke-width', '1');
-        g.appendChild(gridLine);
-
-        const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        lbl.setAttribute('x', padL - 8);
-        lbl.setAttribute('y', yPos + 4);
-        lbl.setAttribute('text-anchor', 'end');
-        lbl.setAttribute('fill', '#64748b');
-        lbl.setAttribute('font-size', '10');
-        lbl.setAttribute('font-family', 'JetBrains Mono');
-        lbl.textContent = elVal.toFixed(1);
-        g.appendChild(lbl);
-      }
-
-      // Draw Cut/Fill shaded polygon between EGL and DFL
-      let fillCutPts1 = [];
-      let fillCutPts2 = [];
-      stList.forEach(s => {
-        fillCutPts1.push(`${toX(s.chainage)},${toY(s.dfl)}`);
-        fillCutPts2.unshift(`${toX(s.chainage)},${toY(s.egl)}`);
-      });
-
-      const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-      poly.setAttribute('points', fillCutPts1.concat(fillCutPts2).join(' '));
-      poly.setAttribute('fill', '#0ea5e9');
-      poly.setAttribute('opacity', '0.15');
-      g.appendChild(poly);
-
-      // Lines for EGL & DFL
-      let eglPath = '';
-      let dflPath = '';
-      stList.forEach((s, idx) => {
-        const x = toX(s.chainage);
-        const yE = toY(s.egl);
-        const yD = toY(s.dfl);
-
-        eglPath += (idx === 0 ? 'M' : 'L') + `${x},${yE} `;
-        dflPath += (idx === 0 ? 'M' : 'L') + `${x},${yD} `;
-
-        // Vertical guide per station
-        const vGuide = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        vGuide.setAttribute('x1', x);
-        vGuide.setAttribute('y1', padT);
-        vGuide.setAttribute('x2', x);
-        vGuide.setAttribute('y2', H - padB);
-        vGuide.setAttribute('stroke', '#334155');
-        vGuide.setAttribute('stroke-dasharray', '3 3');
-        g.appendChild(vGuide);
-
-        // Station label bottom
-        const staLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        staLbl.setAttribute('x', x);
-        staLbl.setAttribute('y', H - padB + 18);
-        staLbl.setAttribute('text-anchor', 'middle');
-        staLbl.setAttribute('fill', '#cbd5e1');
-        staLbl.setAttribute('font-size', '10');
-        staLbl.setAttribute('font-family', 'JetBrains Mono');
-        staLbl.textContent = s.name;
-        g.appendChild(staLbl);
-      });
-
-      // EGL Polyline (Dashed Amber)
-      const pEGL = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      pEGL.setAttribute('d', eglPath);
-      pEGL.setAttribute('fill', 'none');
-      pEGL.setAttribute('stroke', '#f59e0b');
-      pEGL.setAttribute('stroke-width', '2.5');
-      pEGL.setAttribute('stroke-dasharray', '6 3');
-      g.appendChild(pEGL);
-
-      // DFL Polyline (Solid Sky Blue)
-      const pDFL = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      pDFL.setAttribute('d', dflPath);
-      pDFL.setAttribute('fill', 'none');
-      pDFL.setAttribute('stroke', '#38bdf8');
-      pDFL.setAttribute('stroke-width', '3');
-      g.appendChild(pDFL);
-
-      // Title & Legend
-      const chartTitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      chartTitle.setAttribute('x', W / 2);
-      chartTitle.setAttribute('y', 25);
-      chartTitle.setAttribute('text-anchor', 'middle');
-      chartTitle.setAttribute('fill', '#f8fafc');
-      chartTitle.setAttribute('font-size', '13');
-      chartTitle.setAttribute('font-weight', 'bold');
-      chartTitle.setAttribute('font-family', 'Chakra Petch');
-      chartTitle.textContent = 'รูปตัดตามยาว Profile แนวคันทาง (Longitudinal Alignment: EGL vs DFL)';
-      g.appendChild(chartTitle);
-    }
-
-    function init3DScene() {
-      const container = document.getElementById('webglContainer');
-      if (!container) return;
-
-      const w = container.clientWidth || 700;
-      const h = container.clientHeight || 420;
-
-      scene3D = new THREE.Scene();
-      scene3D.background = new THREE.Color(0x020617);
-
-      camera3D = new THREE.PerspectiveCamera(45, w / h, 0.1, 2000);
-      camera3D.position.set(40, 35, 70);
-
-      renderer3D = new THREE.WebGLRenderer({ antialias: true });
-      renderer3D.setSize(w, h);
-      renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer3D.shadowMap.enabled = true;
-
-      container.innerHTML = '';
-      container.appendChild(renderer3D.domElement);
-
-      controls3D = new THREE.OrbitControls(camera3D, renderer3D.domElement);
-      controls3D.enableDamping = true;
-      controls3D.dampingFactor = 0.05;
-      controls3D.target.set(0, 0, 0);
-
-      // Lights
-      const hemiLight = new THREE.HemisphereLight(0xffffff, 0x1e293b, 0.85);
-      scene3D.add(hemiLight);
-
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-      dirLight.position.set(50, 80, 40);
-      dirLight.castShadow = true;
-      scene3D.add(dirLight);
-
-      // Subtle Grid
-      const grid = new THREE.GridHelper(200, 40, 0x38bdf8, 0x1e293b);
-      grid.position.y = -0.1;
-      scene3D.add(grid);
-
-      corridor3DGroup = new THREE.Group();
-      scene3D.add(corridor3DGroup);
-
-      window.addEventListener('resize', onResize3D);
-      animate3D();
-    }
-
-    function onResize3D() {
-      const container = document.getElementById('webglContainer');
-      if (!container || !renderer3D || !camera3D) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      camera3D.aspect = w / h;
-      camera3D.updateProjectionMatrix();
-      renderer3D.setSize(w, h);
-    }
-
-    function animate3D() {
-      requestAnimationFrame(animate3D);
-      if (controls3D) controls3D.update();
-      if (renderer3D && scene3D && camera3D) {
-        renderer3D.render(scene3D, camera3D);
-      }
-    }
-
-    function reset3DCamera() {
-      if (camera3D && controls3D) {
-        camera3D.position.set(40, 35, 70);
-        controls3D.target.set(0, 0, 0);
-        controls3D.update();
-      }
-    }
-
-    function toggleExplode3D() {
-      is3DExploded = !is3DExploded;
-      const btn = document.getElementById('explode3dBtn');
-      if (is3DExploded) {
-        btn.classList.add('bg-amber-500', 'text-slate-950', 'font-bold');
-        btn.classList.remove('text-amber-300', 'bg-slate-800');
-      } else {
-        btn.classList.remove('bg-amber-500', 'text-slate-950', 'font-bold');
-        btn.classList.add('text-amber-300', 'bg-slate-800');
-      }
-      recalculateAll();
-    }
-
-    function toggleWireframe3D() {
-      is3DWireframe = !is3DWireframe;
-      const btn = document.getElementById('wireframe3dBtn');
-      if (is3DWireframe) {
-        btn.classList.add('bg-sky-500', 'text-slate-950', 'font-bold');
-        btn.classList.remove('text-slate-300', 'bg-slate-800');
-      } else {
-        btn.classList.remove('bg-sky-500', 'text-slate-950', 'font-bold');
-        btn.classList.add('text-slate-300', 'bg-slate-800');
-      }
-      if (corridor3DGroup) {
-        corridor3DGroup.traverse(child => {
-          if (child.isMesh && child.material) {
-            child.material.wireframe = is3DWireframe;
-          }
-        });
-      }
-    }
-
-    function create3DPrismoidMesh(ptsA, ptsB, zA, zB, colorHex, explodeY = 0) {
-      const count = ptsA.length;
-      const vertices = [];
-      const indices = [];
-
-      // Add points A
-      for (let i = 0; i < count; i++) {
-        vertices.push(ptsA[i].x, ptsA[i].y + explodeY, zA);
-      }
-      // Add points B
-      for (let i = 0; i < count; i++) {
-        vertices.push(ptsB[i].x, ptsB[i].y + explodeY, zB);
-      }
-
-      // Side quads
-      for (let i = 0; i < count; i++) {
-        const next = (i + 1) % count;
-        const a1 = i, a2 = next;
-        const b1 = i + count, b2 = next + count;
-        indices.push(a1, b1, a2);
-        indices.push(a2, b1, b2);
-      }
-
-      // End caps
-      for (let i = 1; i < count - 1; i++) {
-        indices.push(0, i + 1, i);
-        indices.push(count, count + i, count + i + 1);
-      }
-
-      const geom = new THREE.BufferGeometry();
-      geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-      geom.setIndex(indices);
-      geom.computeVertexNormals();
-
-      const mat = new THREE.MeshStandardMaterial({
-        color: colorHex,
-        roughness: 0.65,
-        metalness: 0.1,
-        wireframe: is3DWireframe,
-        side: THREE.DoubleSide
-      });
-
-      return new THREE.Mesh(geom, mat);
-    }
-
-    function update3DCorridor(calcData) {
-      if (!corridor3DGroup) return;
-
-      while (corridor3DGroup.children.length > 0) {
-        const obj = corridor3DGroup.children[0];
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) obj.material.dispose();
-        corridor3DGroup.remove(obj);
-      }
-
-      const stList = calcData.stGeoms;
-      if (stList.length < 2) return;
-
-      const halfW = calcData.W / 2.0;
-      const minChainage = stList[0].chainage;
-      const maxChainage = stList[stList.length - 1].chainage;
-      const midChainage = (minChainage + maxChainage) / 2.0;
-
-      // Base datum for 3D elevation
-      const datumEl = Math.min(...stList.map(s => Math.min(s.egl, s.dfl)));
-
-      for (let i = 0; i < stList.length - 1; i++) {
-        const sA = stList[i];
-        const sB = stList[i + 1];
-
-        const zA = -(sA.chainage - midChainage);
-        const zB = -(sB.chainage - midChainage);
-
-        // Ground/Base fill prism
-        const yEGL_A = sA.egl - datumEl;
-        const yEGL_B = sB.egl - datumEl;
-        const yDFL_A = sA.dfl - datumEl;
-        const yDFL_B = sB.dfl - datumEl;
-
-        const isFillA = sA.isFill;
-        const isFillB = sB.isFill;
-
-        // Station A Cross points
-        const baseHalfWA = sA.baseWidth / 2.0;
-        const baseHalfWB = sB.baseWidth / 2.0;
-
-        const ptsA = isFillA ? [
-          { x: -baseHalfWA, y: yEGL_A },
-          { x: -halfW, y: yDFL_A },
-          { x: halfW, y: yDFL_A },
-          { x: baseHalfWA, y: yEGL_A }
-        ] : [
-          { x: -baseHalfWA, y: yEGL_A },
-          { x: -halfW, y: yDFL_A - calcData.totalPaveThick },
-          { x: halfW, y: yDFL_A - calcData.totalPaveThick },
-          { x: baseHalfWA, y: yEGL_A }
-        ];
-
-        const ptsB = isFillB ? [
-          { x: -baseHalfWB, y: yEGL_B },
-          { x: -halfW, y: yDFL_B },
-          { x: halfW, y: yDFL_B },
-          { x: baseHalfWB, y: yEGL_B }
-        ] : [
-          { x: -baseHalfWB, y: yEGL_B },
-          { x: -halfW, y: yDFL_B - calcData.totalPaveThick },
-          { x: halfW, y: yDFL_B - calcData.totalPaveThick },
-          { x: baseHalfWB, y: yEGL_B }
-        ];
-
-        const earthColor = (isFillA || isFillB) ? 0x0284c7 : 0xdc2626;
-        const earthMesh = create3DPrismoidMesh(ptsA, ptsB, zA, zB, earthColor, 0);
-        corridor3DGroup.add(earthMesh);
-
-        // Pavement layers prism on top
-        let curTopA = isFillA ? yDFL_A : (yDFL_A - calcData.totalPaveThick);
-        let curTopB = isFillB ? yDFL_B : (yDFL_B - calcData.totalPaveThick);
-        let explodeIdx = 1;
-
-        calcData.activeLayers.forEach(l => {
-          const t = l.thickness;
-          const explodeY = is3DExploded ? explodeIdx * 1.5 : 0;
-          const mat = MATERIAL_TYPES[l.type] || MATERIAL_TYPES.concrete;
-
-          const layPtsA = [
-            { x: -halfW, y: curTopA },
-            { x: halfW, y: curTopA },
-            { x: halfW, y: curTopA + t },
-            { x: -halfW, y: curTopA + t }
-          ];
-
-          const layPtsB = [
-            { x: -halfW, y: curTopB },
-            { x: halfW, y: curTopB },
-            { x: halfW, y: curTopB + t },
-            { x: -halfW, y: curTopB + t }
-          ];
-
-          const layMesh = create3DPrismoidMesh(layPtsA, layPtsB, zA, zB, mat.threeColor, explodeY);
-          corridor3DGroup.add(layMesh);
-
-          curTopA += t;
-          curTopB += t;
-          explodeIdx++;
-        });
-      }
-    }
-
-    function switchVisualTab(tabKey) {
-      activeVisualTab = tabKey;
-      const btn2d = document.getElementById('viewTab2dBtn');
-      const btnProf = document.getElementById('viewTabProfileBtn');
-      const btn3d = document.getElementById('viewTab3dBtn');
-
-      const vp2d = document.getElementById('viewport2D');
-      const vpProf = document.getElementById('viewportProfile');
-      const vp3d = document.getElementById('viewport3D');
-
-      const ctrl2d = document.getElementById('controls2d');
-      const ctrl3d = document.getElementById('controls3d');
-
-      [btn2d, btnProf, btn3d].forEach(b => {
-        b.classList.remove('bg-sky-600', 'text-white', 'shadow');
-        b.classList.add('text-slate-400');
-      });
-      [vp2d, vpProf, vp3d, ctrl2d, ctrl3d].forEach(v => v.classList.add('hidden'));
-
-      if (tabKey === '2d') {
-        btn2d.classList.add('bg-sky-600', 'text-white', 'shadow');
-        btn2d.classList.remove('text-slate-400');
-        vp2d.classList.remove('hidden');
-        ctrl2d.classList.remove('hidden');
-        setTimeout(() => recalculateAll(), 30);
-      } else if (tabKey === 'profile') {
-        btnProf.classList.add('bg-sky-600', 'text-white', 'shadow');
-        btnProf.classList.remove('text-slate-400');
-        vpProf.classList.remove('hidden');
-        setTimeout(() => renderLongitudinalProfile(), 30);
-      } else if (tabKey === '3d') {
-        btn3d.classList.add('bg-sky-600', 'text-white', 'shadow');
-        btn3d.classList.remove('text-slate-400');
-        vp3d.classList.remove('hidden');
-        ctrl3d.classList.remove('hidden');
-        if (!renderer3D) {
-          init3DScene();
+    // --- Math: Homography (Gauss-Jordan) ---
+    function solveGaussJordan(A, B) {
+        let n = A.length;
+        for (let i = 0; i < n; i++) {
+            let maxEl = Math.abs(A[i][i]), maxRow = i;
+            for (let k = i + 1; k < n; k++) {
+                if (Math.abs(A[k][i]) > maxEl) { maxEl = Math.abs(A[k][i]); maxRow = k; }
+            }
+            for (let k = i; k < n; k++) { let tmp = A[maxRow][k]; A[maxRow][k] = A[i][k]; A[i][k] = tmp; }
+            let tmpB = B[maxRow]; B[maxRow] = B[i]; B[i] = tmpB;
+
+            for (let k = i + 1; k < n; k++) {
+                let c = -A[k][i] / A[i][i];
+                for (let j = i; j < n; j++) {
+                    if (i === j) A[k][j] = 0; else A[k][j] += c * A[i][j];
+                }
+                B[k] += c * B[i];
+            }
         }
-        setTimeout(() => {
-          onResize3D();
-          recalculateAll();
-        }, 30);
-      }
+        let x = new Array(n).fill(0);
+        for (let i = n - 1; i >= 0; i--) {
+            x[i] = B[i] / A[i][i];
+            for (let k = i - 1; k >= 0; k--) B[k] -= A[k][i] * x[i];
+        }
+        return x;
     }
 
-    // CSV Export of BOQ
-    document.getElementById('exportCsvBtn').addEventListener('click', () => {
-      const q = calculateAllQuantities();
-      let csv = "\uFEFF"; // UTF-8 BOM
-      csv += "ช่วงสถานี (Station Interval),ระยะห่าง L (ม.),พท.ดินตัดเฉลี่ย (ตร.ม.),ปริมาตรดินตัดแน่น (ลบ.ม.),พท.ดินถมเฉลี่ย (ตร.ม.),ปริมาตรดินถมแน่น (ลบ.ม.),ปริมาตรดินถมหลวม (ลบ.ม.),เที่ยวรถ 10 ล้อ\n";
+    function sortRectCorners(pts) {
+        let cx = pts.reduce((s, p) => s + p.x, 0) / 4;
+        let cy = pts.reduce((s, p) => s + p.y, 0) / 4;
+        let tl = pts.reduce((a,b) => (a.x+a.y) < (b.x+b.y) ? a : b);
+        let br = pts.reduce((a,b) => (a.x+a.y) > (b.x+b.y) ? a : b);
+        let remaining = pts.filter(p => p !== tl && p !== br);
+        let tr = remaining[0].x > remaining[1].x ? remaining[0] : remaining[1];
+        let bl = remaining[0].x < remaining[1].x ? remaining[0] : remaining[1];
+        return [tl, tr, br, bl];
+    }
 
-      q.intervals.forEach(r => {
-        csv += `"Sta. ${r.fromSta} -> ${r.toSta}",${r.length.toFixed(2)},${r.avgCutArea.toFixed(2)},${r.cutVol.toFixed(2)},${r.avgFillArea.toFixed(2)},${r.fillVol.toFixed(2)},${r.fillLoose.toFixed(2)},${r.trucks}\n`;
-      });
+    function calculateHomography(srcPixels, realW, realH) {
+        let sortedSrc = sortRectCorners(srcPixels);
+        let dstReal = [{x: 0, y: 0}, {x: realW, y: 0}, {x: realW, y: realH}, {x: 0, y: realH}];
+        let A = [], B = [];
+        for (let i = 0; i < 4; i++) {
+            let x = sortedSrc[i].x, y = sortedSrc[i].y;
+            let u = dstReal[i].x, v = dstReal[i].y;
+            A.push([x, y, 1, 0, 0, 0, -u*x, -u*y]); B.push(u);
+            A.push([0, 0, 0, x, y, 1, -v*x, -v*y]); B.push(v);
+        }
+        let h = solveGaussJordan(A, B);
+        return [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], 1]];
+    }
 
-      csv += `"รวมทั้งสิ้น",${q.totalLength.toFixed(2)},-,${q.totalCutCompacted.toFixed(2)},-,${q.totalFillCompacted.toFixed(2)},${q.totalFillLoose.toFixed(2)},${q.totalTrucks}\n\n`;
+    function pixelToReal(px, py) {
+        if (!State.calibrated) return {x: 0, y: 0};
+        if (State.calibType === 'planar') return { x: px / State.pxPerCm, y: py / State.pxPerCm };
+        if (State.calibType === 'perspective' && State.H_Matrix) {
+            let H = State.H_Matrix;
+            let w = H[2][0]*px + H[2][1]*py + H[2][2];
+            return {
+                x: (H[0][0]*px + H[0][1]*py + H[0][2]) / w,
+                y: (H[1][0]*px + H[1][1]*py + H[1][2]) / w
+            };
+        }
+        return {x: 0, y: 0};
+    }
 
-      csv += "รายการโครงสร้างชั้นทาง,ความหนา (ม.),แฟกเตอร์ยุบตัว,ปริมาตรแน่น (ลบ.ม.),ปริมาตรหลวม (ลบ.ม.),เที่ยวรถ 10 ล้อ\n";
-      q.pavementSummary.forEach(p => {
-        csv += `"${p.name}",${p.thickness.toFixed(2)},${p.shrinkage.toFixed(2)},${p.volCompacted.toFixed(2)},${p.volLoose.toFixed(2)},${p.trucks}\n`;
-      });
+    function dist(p1, p2) { return Math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2); }
+    
+    function calculateRealLength(pixelPoints) {
+        if(pixelPoints.length < 2) return 0;
+        let len = 0;
+        let realPts = pixelPoints.map(p => pixelToReal(p.x, p.y));
+        for(let i=0; i<realPts.length-1; i++) len += dist(realPts[i], realPts[i+1]);
+        return len;
+    }
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `Highway_Earthwork_BOQ_${Date.now()}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    function calculateRealArea(pixelPoints) {
+        if(pixelPoints.length < 3) return 0;
+        let realPts = pixelPoints.map(p => pixelToReal(p.x, p.y));
+        let area = 0, j = realPts.length - 1;
+        for (let i = 0; i < realPts.length; i++) {
+            area += (realPts[j].x + realPts[i].x) * (realPts[j].y - realPts[i].y);
+            j = i;
+        }
+        return Math.abs(area / 2.0);
+    }
+
+    // --- STREAMING_CHUNK:Setting up canvas and UI event listeners... ---
+    const canvas = document.getElementById('main-canvas');
+    const ctx = canvas.getContext('2d');
+    let isDrawingLine = false;
+
+    document.getElementById('imageUpload').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const img = new Image();
+        img.onload = () => {
+            State.image = img;
+            canvas.width = img.width;
+            canvas.height = img.height;
+            document.getElementById('canvas-placeholder').classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            // Reset state
+            State.calibrated = false; State.refPoints = [];
+            State.records = {crack: [], area: [], rebar: []};
+            State.mode = 'idle';
+            State.tool = null;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            
+            updateCalStatus();
+            updateInstruction('ตั้งค่าอ้างอิงขนาด (ขั้นตอน 2) เพื่อความแม่นยำ');
+            render();
+            updateDashboard();
+        }
+        img.src = URL.createObjectURL(file);
     });
 
-    window.addEventListener('load', () => {
-      ['globalWidth', 'globalFillSlope', 'globalCutSlope', 'shrinkageFill', 'swellCut', 'truckCapacity'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('input', recalculateAll);
-      });
+    window.setRefMode = function(mode) {
+        State.refMode = mode;
+        document.getElementById('cfg-planar').classList.toggle('hidden', mode !== 'planar');
+        document.getElementById('cfg-persp').classList.toggle('hidden', mode !== 'perspective');
+        
+        let tabPlanar = document.getElementById('tab-planar');
+        let tabPersp = document.getElementById('tab-persp');
+        if(mode === 'planar') {
+            tabPlanar.className = "flex-1 py-1.5 text-xs font-bold rounded-md transition bg-white shadow-sm text-indigo-700";
+            tabPersp.className = "flex-1 py-1.5 text-xs font-bold rounded-md transition text-slate-500 hover:text-slate-700";
+        } else {
+            tabPersp.className = "flex-1 py-1.5 text-xs font-bold rounded-md transition bg-white shadow-sm text-indigo-700";
+            tabPlanar.className = "flex-1 py-1.5 text-xs font-bold rounded-md transition text-slate-500 hover:text-slate-700";
+        }
+        
+        // Auto start if image is loaded to reset points
+        if(State.image && State.mode === 'calibrating') startCalibration();
+    };
 
-      renderStationTable();
-      renderLayersListUI();
-      setupSvg2DInteractions();
-      recalculateAll();
-      init3DScene();
+    function updateBadge(text, colorClass) {
+        const badge = document.getElementById('active-tool-badge');
+        badge.innerHTML = text;
+        badge.className = `px-3 py-1 text-xs font-bold rounded-full shadow-sm flex items-center gap-1 ${colorClass}`;
+    }
+    
+    function updateInstruction(text) {
+        document.getElementById('instruction-text').innerText = text;
+    }
+
+    window.startCalibration = function() {
+        if(!State.image) return showToast('กรุณาอัพโหลดรูปภาพในขั้นตอนที่ 1 ก่อน', 'error');
+        State.mode = 'calibrating';
+        State.tool = null;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('drawing-controls').classList.add('hidden');
+        document.getElementById('drag-hint').classList.remove('hidden');
+        
+        // Don't clear points if we already have the correct amount, let user edit them!
+        let reqPts = State.refMode === 'planar' ? 2 : 4;
+        if(State.refPoints.length !== reqPts) {
+            State.refPoints = []; // Only clear if mismatched
+            State.calibrated = false;
+            updateCalStatus();
+        }
+        
+        updateBadge(`โหมด: กำหนดจุดอ้างอิง (${State.refPoints.length}/${reqPts})`, 'bg-indigo-100 text-indigo-700 border border-indigo-200');
+        updateInstruction('คลิกเพื่อวางจุด หรือ คลิกค้างที่จุดเดิมเพื่อลากปรับแต่ง (Drag & Drop)');
+        render();
+    };
+
+    window.selectTool = function(tool) {
+        if(!State.calibrated) return showToast('กรุณากำหนดขนาดอ้างอิงในขั้นตอนที่ 2 ให้เสร็จก่อน', 'error');
+        
+        State.mode = 'drawing';
+        State.tool = tool;
+        State.currentPath = [];
+        document.getElementById('drag-hint').classList.add('hidden');
+        
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tool-${tool}`).classList.add('active');
+        
+        const config = {
+            crack: {name: 'วัดรอยร้าว', icon: 'activity', color: 'bg-red-100 text-red-700 border-red-200'},
+            area: {name: 'พื้นที่เสื่อมสภาพ', icon: 'hexagon', color: 'bg-yellow-100 text-yellow-700 border-yellow-200'},
+            rebar: {name: 'วัดเหล็กเสริม', icon: 'git-commit', color: 'bg-green-100 text-green-700 border-green-200'}
+        };
+        
+        updateBadge(`<i data-lucide="${config[tool].icon}" class="w-3 h-3"></i> เครื่องมือ: ${config[tool].name}`, config[tool].color);
+        updateInstruction('คลิกค้างแล้วลากเพื่อวาดเส้น หรือคลิกทีละจุด จากนั้นกด "บันทึกเส้นนี้"');
+        lucide.createIcons();
+        document.getElementById('drawing-controls').classList.remove('hidden');
+        render();
+    };
+
+    // --- STREAMING_CHUNK:Implementing Drag-and-Drop and Hit Detection... ---
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        let x = e.clientX, y = e.clientY;
+        if(e.touches && e.touches.length > 0) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
+        return { x: (x - rect.left) * scaleX, y: (y - rect.top) * scaleY };
+    }
+
+    function hitTestRefPoints(pos) {
+        // Hit radius dynamically scales slightly, but fixed 20px is good for most
+        // Convert screen distance back to canvas scale for accurate hit test
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const hitRadius = 25 * scaleX; // larger hit area for ease of use
+        
+        for(let i=0; i<State.refPoints.length; i++) {
+            if(dist(pos, State.refPoints[i]) < hitRadius) return i;
+        }
+        return -1;
+    }
+
+    // Mouse Events
+    canvas.addEventListener('mousedown', (e) => {
+        if(State.mode === 'idle') return;
+        const pos = getMousePos(e);
+        
+        if (State.mode === 'calibrating') {
+            let hitIdx = hitTestRefPoints(pos);
+            let reqPts = State.refMode === 'planar' ? 2 : 4;
+
+            if (hitIdx !== -1) {
+                // Start dragging
+                State.draggingPointIndex = hitIdx;
+            } else if (State.refPoints.length < reqPts) {
+                // Place new point
+                State.refPoints.push(pos);
+                updateBadge(`โหมด: กำหนดจุดอ้างอิง (${State.refPoints.length}/${reqPts})`, 'bg-indigo-100 text-indigo-700 border border-indigo-200');
+                if (State.refPoints.length === reqPts) processCalibration();
+            }
+            render();
+        } 
+        else if (State.mode === 'drawing') {
+            isDrawingLine = true;
+            State.currentPath.push(pos);
+            render();
+        }
     });
-  </script>
+
+    canvas.addEventListener('mousemove', (e) => {
+        const pos = getMousePos(e);
+
+        if (State.mode === 'calibrating') {
+            // Hover effect logic
+            let hitIdx = hitTestRefPoints(pos);
+            if (hitIdx !== State.hoveredPointIndex) {
+                State.hoveredPointIndex = hitIdx;
+                render(); // trigger render for hover highlight
+            }
+            // Cursor update
+            if (State.draggingPointIndex !== -1) {
+                canvas.className = 'cursor-grabbing';
+            } else if (hitIdx !== -1) {
+                canvas.className = 'cursor-grab';
+            } else {
+                canvas.className = 'cursor-crosshair';
+            }
+
+            // Drag logic
+            if (State.draggingPointIndex !== -1) {
+                State.refPoints[State.draggingPointIndex] = pos;
+                let reqPts = State.refMode === 'planar' ? 2 : 4;
+                // Real-time recalculation if fully calibrated
+                if (State.refPoints.length === reqPts) {
+                    processCalibration(true); // silent update
+                }
+                render();
+            }
+        }
+        else if (State.mode === 'drawing') {
+            canvas.className = 'cursor-crosshair';
+            if (isDrawingLine) {
+                let last = State.currentPath[State.currentPath.length-1];
+                if(dist(last, pos) > 10) { // throttle points
+                    State.currentPath.push(pos);
+                    render();
+                }
+            }
+        }
+    });
+
+    window.addEventListener('mouseup', () => { 
+        if(State.draggingPointIndex !== -1) {
+            State.draggingPointIndex = -1;
+            render();
+        }
+        isDrawingLine = false; 
+    });
+
+    // Touch Support Mapping
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent('mousedown', {clientX: e.touches[0].clientX, clientY: e.touches[0].clientY})); }, {passive:false});
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent('mousemove', {clientX: e.touches[0].clientX, clientY: e.touches[0].clientY})); }, {passive:false});
+    canvas.addEventListener('touchend', (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent('mouseup')); }, {passive:false});
+
+    // --- STREAMING_CHUNK:Calibration processing and measurement recalculation... ---
+    function processCalibration(silent = false) {
+        if (State.refMode === 'planar') {
+            let pxLen = dist(State.refPoints[0], State.refPoints[1]);
+            let realLen = parseFloat(document.getElementById('ref-len').value) || 10;
+            State.pxPerCm = pxLen / realLen;
+            State.calibType = 'planar';
+        } else {
+            let w = parseFloat(document.getElementById('ref-w').value) || 10;
+            let h = parseFloat(document.getElementById('ref-h').value) || 20;
+            try {
+                State.H_Matrix = calculateHomography(State.refPoints, w, h);
+                State.calibType = 'perspective';
+            } catch(err) {
+                if(!silent) showToast('การคำนวณระนาบผิดพลาด กรุณาขยับจุดให้เป็นรูปสี่เหลี่ยม', 'error');
+                return;
+            }
+        }
+        
+        State.calibrated = true;
+        recalculateAllMeasurements(); // Crucial for drag & drop real-time updates!
+        updateCalStatus();
+        
+        if(!silent) {
+            updateBadge(`✅ อ้างอิงสำเร็จ`, 'bg-green-100 text-green-700 border border-green-200');
+            showToast('อ้างอิงขนาดเสร็จสิ้น สามารถไปที่ขั้นตอนที่ 3 ได้เลย', 'success');
+        }
+        render();
+    }
+
+    function recalculateAllMeasurements() {
+        State.records.crack.forEach(c => c.realLen = calculateRealLength(c.points));
+        State.records.area.forEach(a => a.realArea = calculateRealArea(a.points));
+        State.records.rebar.forEach(r => r.realLen = calculateRealLength(r.points));
+        updateDashboard();
+    }
+
+    function updateCalStatus() {
+        const el = document.getElementById('cal-status');
+        if (State.calibrated) {
+            let msg = State.calibType === 'planar' ? "ระนาบตรง 2 จุด" : "มุมเอียง (Homography) 4 จุด";
+            el.className = "mt-4 text-center text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded-lg flex items-center justify-center gap-2 border border-emerald-200 shadow-sm";
+            el.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> อ้างอิงสำเร็จ: ${msg}`;
+        } else {
+            el.className = "mt-4 text-center text-xs font-bold text-slate-500 bg-slate-50 p-2 rounded-lg flex items-center justify-center gap-2 border border-slate-200";
+            el.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4"></i> รอการกำหนดขนาด`;
+        }
+        lucide.createIcons({root: el});
+    }
+
+    window.cancelDrawing = function() {
+        State.currentPath = [];
+        render();
+    };
+
+    window.finishDrawing = function() {
+        if (State.currentPath.length < 2 && State.tool !== 'area') return showToast('เส้นสั้นเกินไป กรุณาวาดใหม่', 'error');
+        if (State.currentPath.length < 3 && State.tool === 'area') return showToast('พื้นที่ต้องมีอย่างน้อย 3 จุด', 'error');
+
+        const modal = document.getElementById('custom-modal');
+        const mTitle = document.getElementById('modal-title');
+        const mBody = document.getElementById('modal-body');
+        
+        if (State.tool === 'crack') {
+            mTitle.innerHTML = `<i data-lucide="activity" class="w-5 h-5 text-red-500"></i> ข้อมูลรอยร้าว`;
+            mBody.innerHTML = `
+                <div><label class="block text-sm font-bold text-slate-700 mb-1.5">ความกว้างรอยร้าว (mm)</label>
+                <input type="number" id="mod-crack-w" step="0.1" placeholder="เช่น 0.2" class="w-full border border-slate-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"></div>
+                <div><label class="block text-sm font-bold text-slate-700 mb-1.5">ความลึก (mm) <span class="text-slate-400 font-normal">(ถ้ามี)</span></label>
+                <input type="number" id="mod-crack-d" step="0.1" placeholder="เช่น 5.0" class="w-full border border-slate-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"></div>
+            `;
+        } else if (State.tool === 'area') {
+            mTitle.innerHTML = `<i data-lucide="hexagon" class="w-5 h-5 text-yellow-500"></i> ข้อมูลพื้นที่เสื่อมสภาพ`;
+            mBody.innerHTML = `
+                <div><label class="block text-sm font-bold text-slate-700 mb-1.5">รายละเอียด / สาเหตุ</label>
+                <input type="text" id="mod-area-desc" placeholder="เช่น คอนกรีตหลุดร่อนถึงเหล็กเสริม" class="w-full border border-slate-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"></div>
+            `;
+        } else if (State.tool === 'rebar') {
+            mTitle.innerHTML = `<i data-lucide="git-commit" class="w-5 h-5 text-green-500"></i> ข้อมูลเหล็กเสริม`;
+            mBody.innerHTML = `
+                <div><label class="block text-sm font-bold text-slate-700 mb-1.5">รายละเอียดความเสียหาย</label>
+                <input type="text" id="mod-rebar-desc" placeholder="เช่น เป็นสนิมขุมหน้าตัดลดลง" class="w-full border border-slate-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"></div>
+            `;
+        }
+        
+        lucide.createIcons({root: mTitle});
+        modal.classList.add('active');
+        setTimeout(() => { const inp = mBody.querySelector('input'); if(inp) inp.focus(); }, 100);
+    };
+
+    window.closeModal = function(save) {
+        document.getElementById('custom-modal').classList.remove('active');
+        if (!save) { State.currentPath = []; render(); return; }
+
+        let item = { id: Date.now(), points: [...State.currentPath] };
+        
+        if (State.tool === 'crack') {
+            item.width = parseFloat(document.getElementById('mod-crack-w').value) || 0;
+            item.depth = parseFloat(document.getElementById('mod-crack-d').value) || 0;
+            item.realLen = calculateRealLength(item.points);
+            State.records.crack.push(item);
+        } else if (State.tool === 'area') {
+            item.desc = document.getElementById('mod-area-desc').value || "-";
+            item.realArea = calculateRealArea(item.points);
+            State.records.area.push(item);
+        } else if (State.tool === 'rebar') {
+            item.desc = document.getElementById('mod-rebar-desc').value || "-";
+            item.realLen = calculateRealLength(item.points);
+            State.records.rebar.push(item);
+        }
+
+        State.currentPath = [];
+        showToast('บันทึกข้อมูลเรียบร้อย', 'success');
+        render();
+        updateDashboard();
+    };
+
+    // --- STREAMING_CHUNK:Canvas Draw Loop... ---
+    function drawTextLabel(text, x, y, color) {
+        ctx.font = 'bold 16px Sarabun, sans-serif';
+        const padding = 6;
+        const w = ctx.measureText(text).width;
+        const h = 16;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillRect(x - w/2 - padding, y - h/2 - padding, w + padding*2, h + padding*2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - w/2 - padding, y - h/2 - padding, w + padding*2, h + padding*2);
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y);
+    }
+
+    function render() {
+        if (!State.image) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(State.image, 0, 0);
+
+        // Helper: Draw Polylines
+        const drawPoly = (points, color, isArea=false, shadow=true) => {
+            if(points.length < 2) return;
+            ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
+            for(let i=1; i<points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            if(isArea) {
+                ctx.closePath();
+                ctx.fillStyle = color.replace('1.0', '0.3').replace('0.8', '0.2');
+                ctx.fill();
+            }
+            ctx.strokeStyle = color; ctx.lineWidth = 4;
+            ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+            if(shadow) { ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2; }
+            ctx.stroke();
+            ctx.shadowColor = 'transparent';
+        };
+
+        // Render saved records
+        State.records.crack.forEach(c => drawPoly(c.points, 'rgba(239, 68, 68, 1.0)')); // Red
+        State.records.area.forEach(a => drawPoly(a.points, 'rgba(234, 179, 8, 1.0)', true)); // Yellow
+        State.records.rebar.forEach(r => drawPoly(r.points, 'rgba(34, 197, 94, 1.0)')); // Green
+
+        // Render active drawing path
+        if (State.currentPath.length > 0) {
+            let color = 'rgba(255, 255, 255, 0.9)';
+            if(State.tool==='crack') color='rgba(239, 68, 68, 0.8)';
+            if(State.tool==='area') color='rgba(234, 179, 8, 0.8)';
+            if(State.tool==='rebar') color='rgba(34, 197, 94, 0.8)';
+            drawPoly(State.currentPath, color, State.tool==='area', false);
+        }
+
+        // Render Calibration Points & Handles
+        if (State.refPoints.length > 0) {
+            // Draw lines and labels (Always visible if exists)
+            if (State.refMode === 'perspective' && State.refPoints.length === 4) {
+                let s = sortRectCorners(State.refPoints);
+                ctx.beginPath(); ctx.moveTo(s[0].x, s[0].y);
+                for(let i=1;i<4;i++) ctx.lineTo(s[i].x, s[i].y);
+                ctx.closePath();
+                ctx.strokeStyle = 'rgba(99, 102, 241, 0.8)'; ctx.lineWidth=3; 
+                if(State.mode === 'calibrating') ctx.setLineDash([5, 5]); 
+                ctx.stroke();
+                ctx.setLineDash([]); // reset
+
+                if (State.calibrated && State.calibType === 'perspective') {
+                    let w = document.getElementById('ref-w').value;
+                    let h = document.getElementById('ref-h').value;
+                    let cx = (s[0].x + s[1].x + s[2].x + s[3].x) / 4;
+                    let cy = (s[0].y + s[1].y + s[2].y + s[3].y) / 4;
+                    drawTextLabel(`Ref: ${w}x${h} cm`, cx, cy, '#4f46e5');
+                }
+            } else if (State.refMode === 'planar' && State.refPoints.length === 2) {
+                ctx.beginPath(); ctx.moveTo(State.refPoints[0].x, State.refPoints[0].y); ctx.lineTo(State.refPoints[1].x, State.refPoints[1].y);
+                ctx.strokeStyle = 'rgba(99, 102, 241, 0.8)'; ctx.lineWidth=3; ctx.stroke();
+
+                if (State.calibrated && State.calibType === 'planar') {
+                    let len = document.getElementById('ref-len').value;
+                    let cx = (State.refPoints[0].x + State.refPoints[1].x) / 2;
+                    let cy = (State.refPoints[0].y + State.refPoints[1].y) / 2;
+                    drawTextLabel(`Ref: ${len} cm`, cx, cy, '#4f46e5');
+                }
+            }
+
+            // Draw interactive handles ONLY during calibration
+            if (State.mode === 'calibrating') {
+                State.refPoints.forEach((p, i) => {
+                    let isHovered = (i === State.hoveredPointIndex);
+                    let isDragging = (i === State.draggingPointIndex);
+                    
+                    ctx.beginPath(); ctx.arc(p.x, p.y, isHovered || isDragging ? 14 : 8, 0, Math.PI*2);
+                    ctx.fillStyle = isDragging ? 'rgba(79, 70, 229, 0.3)' : (isHovered ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0,0,0,0.2)');
+                    ctx.fill();
+                    
+                    ctx.beginPath(); ctx.arc(p.x, p.y, isHovered ? 8 : 6, 0, Math.PI*2);
+                    ctx.fillStyle = '#4f46e5'; 
+                    ctx.fill();
+                    ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+                    
+                    ctx.fillStyle = 'white'; ctx.font="bold 12px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle";
+                    ctx.fillText(i+1, p.x, p.y);
+                });
+            }
+        }
+    }
+
+    // --- STREAMING_CHUNK:Updating Dashboard and Excel Export... ---
+    function updateDashboard() {
+        const tCrack = document.getElementById('tb-raw-crack');
+        const tArea = document.getElementById('tb-raw-area');
+        const tRebar = document.getElementById('tb-raw-rebar');
+        
+        // Cracks
+        tCrack.innerHTML = '';
+        let sumCrackObj = {}; 
+        let totalCrack = 0;
+        
+        if (State.records.crack.length === 0) tCrack.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>';
+        State.records.crack.forEach((c, i) => {
+            totalCrack += c.realLen;
+            let wKey = c.width > 0 ? `${c.width} mm` : `N/A`;
+            sumCrackObj[wKey] = (sumCrackObj[wKey] || 0) + c.realLen;
+            
+            tCrack.innerHTML += `<tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-bold text-slate-700">C${i+1}</td>
+                <td class="px-4 py-3">${c.width || '-'}</td>
+                <td class="px-4 py-3 text-slate-500">${c.depth || '-'}</td>
+                <td class="px-4 py-3 text-right font-bold text-red-600">${c.realLen.toFixed(2)}</td>
+                <td class="px-4 py-3 text-center"><button onclick="deleteRecord('crack', ${c.id})" class="p-1 text-rose-500 hover:bg-rose-100 rounded transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+            </tr>`;
+        });
+
+        // Area
+        tArea.innerHTML = '';
+        let totalArea = 0;
+        if (State.records.area.length === 0) tArea.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>';
+        State.records.area.forEach((a, i) => {
+            totalArea += a.realArea;
+            tArea.innerHTML += `<tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-bold text-slate-700">A${i+1}</td>
+                <td class="px-4 py-3 truncate max-w-[150px] text-slate-600">${a.desc}</td>
+                <td class="px-4 py-3 text-right font-bold text-amber-600">${a.realArea.toFixed(2)}</td>
+                <td class="px-4 py-3 text-center"><button onclick="deleteRecord('area', ${a.id})" class="p-1 text-rose-500 hover:bg-rose-100 rounded transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+            </tr>`;
+        });
+
+        // Rebar
+        tRebar.innerHTML = '';
+        let totalRebar = 0;
+        if (State.records.rebar.length === 0) tRebar.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>';
+        State.records.rebar.forEach((r, i) => {
+            totalRebar += r.realLen;
+            tRebar.innerHTML += `<tr class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-bold text-slate-700">R${i+1}</td>
+                <td class="px-4 py-3 truncate max-w-[150px] text-slate-600">${r.desc}</td>
+                <td class="px-4 py-3 text-right font-bold text-green-600">${r.realLen.toFixed(2)}</td>
+                <td class="px-4 py-3 text-center"><button onclick="deleteRecord('rebar', ${r.id})" class="p-1 text-rose-500 hover:bg-rose-100 rounded transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td>
+            </tr>`;
+        });
+
+        // Re-init lucide icons for dynamic content
+        lucide.createIcons();
+
+        // Summaries Update
+        document.getElementById('total-crack-len').innerText = totalCrack.toFixed(2);
+        document.getElementById('total-area').innerText = totalArea.toFixed(2);
+        document.getElementById('total-rebar').innerText = totalRebar.toFixed(2);
+
+        // Render Summary table
+        let tbSumCrack = document.getElementById('tb-summary-crack');
+        tbSumCrack.innerHTML = '';
+        let keys = Object.keys(sumCrackObj).sort();
+        if(keys.length === 0) tbSumCrack.innerHTML = '<tr><td colspan="2" class="px-2 py-4 text-center text-slate-400 text-xs">ไม่มีข้อมูล</td></tr>';
+        keys.forEach(k => {
+            tbSumCrack.innerHTML += `<tr>
+                <td class="px-2 py-2.5 font-bold text-slate-700">${k}</td>
+                <td class="px-2 py-2.5 text-right font-bold text-blue-700">${sumCrackObj[k].toFixed(2)}</td>
+            </tr>`;
+        });
+    }
+
+    window.deleteRecord = function(type, id) {
+        State.records[type] = State.records[type].filter(x => x.id !== id);
+        render();
+        updateDashboard();
+        showToast('ลบข้อมูลสำเร็จ', 'info');
+    };
+
+    window.saveProject = function() {
+        if (!State.image) return showToast('ไม่มีรูปภาพหรือโปรเจคให้บันทึก', 'error');
+        
+        // Convert original image to base64
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = State.image.width;
+        tempCanvas.height = State.image.height;
+        const tCtx = tempCanvas.getContext('2d');
+        tCtx.drawImage(State.image, 0, 0);
+        const imageBase64 = tempCanvas.toDataURL('image/jpeg', 0.85);
+        
+        const projectData = {
+            metadata: {
+                bldg: document.getElementById('meta-bldg').value,
+                floor: document.getElementById('meta-floor').value,
+                loc: document.getElementById('meta-loc').value
+            },
+            config: {
+                refMode: State.refMode,
+                planarLen: document.getElementById('ref-len').value,
+                perspW: document.getElementById('ref-w').value,
+                perspH: document.getElementById('ref-h').value
+            },
+            state: {
+                calibrated: State.calibrated,
+                calibType: State.calibType,
+                pxPerCm: State.pxPerCm,
+                H_Matrix: State.H_Matrix,
+                refPoints: State.refPoints,
+                records: State.records
+            },
+            imageData: imageBase64
+        };
+        
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectData));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", `Inspection_${Date.now()}.json`);
+        dlAnchorElem.click();
+        showToast('บันทึกโปรเจคสำเร็จ', 'success');
+    };
+
+    window.loadProject = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                // Load Metadata
+                document.getElementById('meta-bldg').value = data.metadata.bldg || "";
+                document.getElementById('meta-floor').value = data.metadata.floor || "";
+                document.getElementById('meta-loc').value = data.metadata.loc || "";
+                
+                // Load Config
+                setRefMode(data.config.refMode);
+                document.getElementById('ref-len').value = data.config.planarLen;
+                document.getElementById('ref-w').value = data.config.perspW;
+                document.getElementById('ref-h').value = data.config.perspH;
+                
+                // Load State
+                State.calibrated = data.state.calibrated;
+                State.calibType = data.state.calibType;
+                State.pxPerCm = data.state.pxPerCm;
+                State.H_Matrix = data.state.H_Matrix;
+                State.refPoints = data.state.refPoints;
+                State.records = data.state.records;
+                
+                // Load Image
+                const img = new Image();
+                img.onload = () => {
+                    State.image = img;
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    document.getElementById('canvas-placeholder').classList.add('hidden');
+                    canvas.classList.remove('hidden');
+                    
+                    State.mode = 'idle';
+                    State.tool = null;
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                    
+                    updateCalStatus();
+                    render();
+                    updateDashboard();
+                    showToast('โหลดโปรเจคสำเร็จ', 'success');
+                };
+                img.src = data.imageData;
+                
+            } catch(err) {
+                showToast('ไฟล์โปรเจคไม่ถูกต้อง', 'error');
+            }
+            event.target.value = ''; // reset input
+        };
+        reader.readAsText(file);
+    };
+
+    window.exportExcel = async function() {
+        if(State.records.crack.length === 0 && State.records.area.length === 0 && State.records.rebar.length === 0) {
+            return showToast('ยังไม่มีข้อมูลสำหรับ Export', 'error');
+        }
+
+        showToast('กำลังสร้างไฟล์ Excel...', 'info');
+
+        const bldg = document.getElementById('meta-bldg').value || "-";
+        const flr = document.getElementById('meta-floor').value || "-";
+        const loc = document.getElementById('meta-loc').value || "-";
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Structural Inspection System';
+        
+        // --- Sheet 1: Summary & Image ---
+        const ws = workbook.addWorksheet('Summary');
+        
+        ws.columns = [
+            { header: '', key: 'col1', width: 25 },
+            { header: '', key: 'col2', width: 20 },
+            { header: '', key: 'col3', width: 15 },
+            { header: '', key: 'col4', width: 25 }
+        ];
+
+        ws.addRow(['รายงานหาปริมาณความเสียหายโครงสร้างจากภาพถ่าย (Structural Inspection)']);
+        ws.mergeCells('A1:D1');
+        ws.getCell('A1').font = { size: 14, bold: true };
+        
+        ws.addRow(['อาคาร:', bldg, 'ชั้น:', flr]);
+        ws.addRow(['ตำแหน่ง:', loc, '', '']);
+        ws.addRow([]);
+        
+        ws.addRow(['สรุปรวมทั้งหมด (Overall Summary)']).font = { bold: true };
+        ws.addRow(['รวมความยาวรอยร้าว (cm):', document.getElementById('total-crack-len').innerText]);
+        ws.addRow(['รวมพื้นที่เสื่อมสภาพ (sq.cm):', document.getElementById('total-area').innerText]);
+        ws.addRow(['รวมความยาวเหล็กเสริม (cm):', document.getElementById('total-rebar').innerText]);
+        ws.addRow([]);
+
+        ws.addRow(['สรุปความยาวรอยร้าว แยกตามความกว้าง']).font = { bold: true };
+        ws.addRow(['ความกว้าง', 'ความยาวรวม (cm)']);
+        ws.getRow(ws.rowCount).font = { bold: true };
+
+        let sumCrackObj = {};
+        State.records.crack.forEach(c => {
+            let wKey = c.width > 0 ? `${c.width} mm` : `N/A`;
+            sumCrackObj[wKey] = (sumCrackObj[wKey] || 0) + c.realLen;
+        });
+        Object.keys(sumCrackObj).sort().forEach(k => {
+            ws.addRow([k, sumCrackObj[k].toFixed(2)]);
+        });
+
+        ws.addRow([]);
+        let imgTitleRow = ws.rowCount + 1;
+        ws.addRow(['ภาพถ่ายประกอบการตรวจสอบ']).font = { bold: true, size: 12 };
+        
+        // Temporarily clear handles for clean screenshot
+        const prevMode = State.mode;
+        State.mode = 'idle';
+        render();
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+        State.mode = prevMode;
+        render(); // Restore
+
+        const imageId = workbook.addImage({ base64: imgData, extension: 'jpeg' });
+        
+        // Scale image to fit reasonably (max width 600px equivalent)
+        const maxWidth = 700;
+        const scale = maxWidth / canvas.width;
+        const scaledWidth = canvas.width * scale;
+        const scaledHeight = canvas.height * scale;
+
+        ws.addImage(imageId, {
+            tl: { col: 0, row: imgTitleRow },
+            ext: { width: scaledWidth, height: scaledHeight }
+        });
+
+        // --- Sheet 2: Cracks ---
+        if(State.records.crack.length > 0) {
+            const wsCrack = workbook.addWorksheet('Cracks');
+            wsCrack.columns = [
+                { header: 'ID', key: 'id', width: 10 },
+                { header: 'Width (mm)', key: 'w', width: 15 },
+                { header: 'Depth (mm)', key: 'd', width: 15 },
+                { header: 'Length (cm)', key: 'l', width: 15 }
+            ];
+            wsCrack.getRow(1).font = { bold: true };
+            State.records.crack.forEach((c,i) => {
+                wsCrack.addRow({id: `C${i+1}`, w: c.width||"-", d: c.depth||"-", l: c.realLen.toFixed(2)});
+            });
+        }
+        
+        // --- Sheet 3: Area ---
+        if(State.records.area.length > 0) {
+            const wsArea = workbook.addWorksheet('Damaged_Areas');
+            wsArea.columns = [
+                { header: 'ID', key: 'id', width: 10 },
+                { header: 'Description', key: 'desc', width: 40 },
+                { header: 'Area (sq.cm)', key: 'area', width: 15 }
+            ];
+            wsArea.getRow(1).font = { bold: true };
+            State.records.area.forEach((a,i) => {
+                wsArea.addRow({id: `A${i+1}`, desc: a.desc, area: a.realArea.toFixed(2)});
+            });
+        }
+
+        // --- Sheet 4: Rebar ---
+        if(State.records.rebar.length > 0) {
+            const wsRebar = workbook.addWorksheet('Rebar');
+            wsRebar.columns = [
+                { header: 'ID', key: 'id', width: 10 },
+                { header: 'Description', key: 'desc', width: 40 },
+                { header: 'Length (cm)', key: 'l', width: 15 }
+            ];
+            wsRebar.getRow(1).font = { bold: true };
+            State.records.rebar.forEach((r,i) => {
+                wsRebar.addRow({id: `R${i+1}`, desc: r.desc, l: r.realLen.toFixed(2)});
+            });
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `Inspection_Report_${bldg}_${loc}.xlsx`);
+        showToast('ส่งออกไฟล์ Excel สำเร็จ', 'success');
+    };
+
+</script>
 </body>
 </html>
